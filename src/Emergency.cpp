@@ -49,6 +49,16 @@ bool Emergency::resolve() {
     return true;
 }
 
+bool Emergency::unassign() {
+    if (status_ != EmergencyStatus::Assigned) {
+        return false;
+    }
+    status_            = EmergencyStatus::Pending;
+    assignedAmbulance_ = -1;
+    assignedHospital_  = -1;
+    return true;
+}
+
 std::unique_ptr<Emergency> makeEmergency(EmergencyType type, int id, int nodeId,
                                          int reportedAt) {
     switch (type) {

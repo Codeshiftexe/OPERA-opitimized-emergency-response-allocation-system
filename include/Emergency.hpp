@@ -40,7 +40,7 @@ public:
 
     bool assign(int ambulanceId, int hospitalId);
     bool resolve();
-
+    bool unassign(); 
     static constexpr double kAgingPerMinute = 0.5;
 
 private:
