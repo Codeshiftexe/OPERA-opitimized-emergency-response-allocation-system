@@ -145,6 +145,27 @@ static void testStatusToString() {
     CHECK(std::string(toString(EmergencyStatus::Resolved)) == "Resolved");
 }
 
+static void testUnassign() {
+    auto e = makeEmergency(EmergencyType::Trauma, 1, 0, 0);
+
+    CHECK(!e->unassign());                       // Pending: nothing to undo
+    CHECK(e->status() == EmergencyStatus::Pending);
+
+    CHECK(e->assign(4, 2));
+    CHECK(e->unassign());                        // Assigned -> Pending
+    CHECK(e->status() == EmergencyStatus::Pending);
+    CHECK_EQ(e->assignedAmbulance(), -1);
+    CHECK_EQ(e->assignedHospital(), -1);
+
+    CHECK(e->assign(5, 3));                      // can be dispatched again
+    CHECK_EQ(e->assignedAmbulance(), 5);
+
+    CHECK(e->resolve());
+    CHECK(!e->unassign());                       // Resolved is final
+    CHECK(e->status() == EmergencyStatus::Resolved);
+    CHECK_EQ(e->assignedAmbulance(), 5);         // refused call changed nothing
+}
+
 int main() {
     testClassDesign();
     testFactoryBuildsCorrectType();
@@ -156,6 +177,6 @@ int main() {
     testAssignAndResolve();
     testInvariantAfterEveryOperation();
     testStatusToString();
-
+    testUnassign();
     return report("test_emergency");
 }
