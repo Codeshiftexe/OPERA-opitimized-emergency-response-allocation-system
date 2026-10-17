@@ -51,7 +51,8 @@ DispatchResult DispatchCoordinator::dispatchNext() {
         return result;
     }
 
-    
+    // Everything was checked above, so a refusal here means a bug, not a
+    // normal situation.
     Ambulance* ambulance = registry_.ambulance(amb.id);
     Hospital* hospital = registry_.hospital(hosp.id);
     queue_.pop();
@@ -69,10 +70,17 @@ DispatchResult DispatchCoordinator::dispatchNext() {
     result.minutesToScene = amb.minutes;
     result.minutesToHospital = hosp.minutes;
     result.meetsTarget = e->meetsTarget(clock_, amb.minutes);
+    active_[e->id()] = result;
     return result;
 }
 
 bool DispatchCoordinator::undoLastDispatch() {
+    int ignored = -1;
+    return undoLastDispatch(ignored);
+}
+
+bool DispatchCoordinator::undoLastDispatch(int& undoneEmergencyId) {
+    undoneEmergencyId = -1;
     while (!history_.empty()) {
         const DispatchRecord r = history_.pop();
         Emergency* e = emergencyById(r.emergencyId);
@@ -87,6 +95,8 @@ bool DispatchCoordinator::undoLastDispatch() {
             !h->releaseBed() || !queue_.push(e)) {
             throw std::logic_error("DispatchCoordinator::undoLastDispatch - state mismatch");
         }
+        active_.erase(e->id());
+        undoneEmergencyId = e->id();
         return true;
     }
     return false;
@@ -103,6 +113,7 @@ bool DispatchCoordinator::completeDispatch(int emergencyId) {
         throw std::logic_error("DispatchCoordinator::completeDispatch - state mismatch");
     }
     a->moveTo(h->nodeId());
+    active_.erase(emergencyId);
     return true;
 }
 
@@ -148,4 +159,16 @@ std::vector<const Emergency*> DispatchCoordinator::emergencies() const {
     return out;
 }
 
-} 
+std::vector<DispatchResult> DispatchCoordinator::activeDispatches() const {
+    std::vector<DispatchResult> out;
+    out.reserve(active_.size());
+    for (const auto& entry : active_) {
+        out.push_back(entry.second);
+    }
+    std::sort(out.begin(), out.end(), [](const DispatchResult& a, const DispatchResult& b) {
+        return a.emergencyId < b.emergencyId;
+    });
+    return out;
+}
+
+}
