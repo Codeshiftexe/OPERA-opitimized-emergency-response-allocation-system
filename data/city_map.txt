@@ -1,6 +1,6 @@
 # ==========================================================================
 # OPERA  |  city_map.txt  (road network)
-# Read by the C++ loader (backend/src/CityLoader.cpp) at server start.
+# Read by the C++ loader (src/CityLoader.cpp) at server start.
 # Lines starting with # are comments. Fields are separated by spaces.
 #
 # NODE <id> <x> <y> <name...>
