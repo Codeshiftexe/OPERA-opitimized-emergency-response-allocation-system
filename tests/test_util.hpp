@@ -5,9 +5,10 @@
 #include <cmath>
 #include <iostream>
 
-// 'inline' lets us define them in a header without the linker complaining
-inline int g_checks = 0;
-inline int g_fails  = 0;
+// 'static': each test program is one .cpp file, so each gets its own counters.
+
+static int g_checks = 0;
+static int g_fails  = 0;
 
 //multi line macro to check a condition. If it fails, print the file and line 
 //number and the condition that failed.

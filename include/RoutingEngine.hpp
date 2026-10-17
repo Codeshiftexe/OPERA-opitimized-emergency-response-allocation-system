@@ -1,6 +1,5 @@
 #pragma once
 
-// Shortest-path routing for OPERA, using Dijkstra's algorithm.
 
 #include "Graph.hpp"
 
@@ -9,7 +8,8 @@
 
 namespace opera {
 //infinity, used to mark unreachable nodes.
-inline constexpr double INF = std::numeric_limits<double>::infinity();
+
+constexpr double INF = std::numeric_limits<double>::infinity();
 
 // The result of one Dijkstra run from a single source location.
 // Holds two arrays, both indexed by node id:
@@ -27,7 +27,6 @@ public:
     // Throws std::out_of_range for an invalid id.
     double distanceTo(int target) const;
 
-    // Can the source reach target at all?
     bool reachable(int target) const;
 
     // The actual route: node ids from source to target, both included.
