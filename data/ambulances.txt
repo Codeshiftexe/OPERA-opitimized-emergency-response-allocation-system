@@ -1,0 +1,18 @@
+# ==========================================================================
+# OPERA  |  ambulances.txt
+# Read by the C++ loader at server start. Fields are separated by |.
+#
+# AMBULANCE <id> | <node id> [| available | offline]
+#     node    must exist in city_map.txt
+#     status  defaults to available. "busy" cannot be loaded: an ambulance
+#             only becomes busy when the engine dispatches it.
+# ==========================================================================
+
+AMBULANCE 1 | 1  | available
+AMBULANCE 2 | 8  | available
+AMBULANCE 3 | 7  | available
+AMBULANCE 4 | 4  | available
+AMBULANCE 5 | 10 | offline
+AMBULANCE 6 | 11 | available
+AMBULANCE 7 | 3  | available
+AMBULANCE 8 | 9  | available
