@@ -1,0 +1,18 @@
+# ==========================================================================
+# OPERA  |  hospitals.txt
+# Read by the C++ loader at server start. Fields are separated by |.
+#
+# HOSPITAL <id> | <node id> | <name> | <total beds> [| <beds free>]
+#     node       must exist in city_map.txt
+#     beds free  0 to total beds; defaults to total beds if left out
+#
+# The engine sends each patient to the NEAREST hospital with a free bed.
+# It does not match hospital services to emergency types (not implemented).
+# ==========================================================================
+
+HOSPITAL 1 | 9  | City General     | 12 | 5
+HOSPITAL 2 | 0  | St. Mary's       | 10 | 0
+HOSPITAL 3 | 3  | North Trauma     | 14 | 9
+HOSPITAL 4 | 11 | Medical College  | 10 | 4
+HOSPITAL 5 | 7  | Doon Heart Care  |  8 | 3
+HOSPITAL 6 | 2  | Railway Hospital | 10 | 6

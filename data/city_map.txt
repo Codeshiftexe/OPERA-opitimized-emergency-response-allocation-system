@@ -1,0 +1,49 @@
+# ==========================================================================
+# OPERA  |  city_map.txt  (road network)
+# Read by the C++ loader (backend/src/CityLoader.cpp) at server start.
+# Lines starting with # are comments. Fields are separated by spaces.
+#
+# NODE <id> <x> <y> <name...>
+#     id    must be 0, 1, 2, ... in the order the nodes appear (it is the
+#           engine's graph id, used everywhere in the API)
+#     x, y  position on the web map only; routing never uses them
+#
+# EDGE <node id> <node id> <minutes>
+#     a two-way road; minutes is the travel time and must be 0 or more
+# ==========================================================================
+
+# ---- Nodes (junctions / landmarks) ----
+NODE 0   70  70 Gandhi Chowk
+NODE 1  215  50 Clock Tower
+NODE 2  360  90 Railway Road
+NODE 3  500  60 Civil Lines
+NODE 4  570 170 Old Bazaar
+NODE 5  400 230 Mall Road
+NODE 6  115 210 Sector 12 Market
+NODE 7  255 240 Station Depot
+NODE 8  255 145 Park Circle
+NODE 9  535 295 City General Jn
+NODE 10 330 315 Lake View
+NODE 11 460 150 Medical College
+
+# ---- Roads (travel time in minutes) ----
+EDGE 0  1  12
+EDGE 1  2  9
+EDGE 0  6  14
+EDGE 6  7  8
+EDGE 7  5  6
+EDGE 2  3  10
+EDGE 2  5  11
+EDGE 5  9  11
+EDGE 3  4  9
+EDGE 4  9  10
+EDGE 1  8  7
+EDGE 8  7  6
+EDGE 8  2  8
+EDGE 8  11 9
+EDGE 11 2  5
+EDGE 11 5  7
+EDGE 11 4  8
+EDGE 7  10 7
+EDGE 10 9  9
+EDGE 6  8  10
