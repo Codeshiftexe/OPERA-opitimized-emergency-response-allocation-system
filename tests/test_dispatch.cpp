@@ -11,8 +11,8 @@
 
 using namespace opera;
 
-// Graph of the city for testing.  A-B-C-D-F is a chain, with a shortcut A-E-D.  Island is disconnected.
-// Hospitals: 1 at D (2 beds), 2 at F (1 bed).  Ambulances: 10 at A, 11 at C.
+//graph for testing: A-B-C-D, A-E-D, D-F, Island
+// A-B-C-D is 4+3+5=12, A-E-D is 2+9=11, D-F is 1, Island is unreachable
 enum Node { A, B, C, D, E, F, Island };
 
 static Graph cityRoads() {
@@ -204,6 +204,60 @@ static void testUndoRestoresEverything() {
     CHECK_EQ(again.hospitalId, before.hospitalId);
 }
 
+static void testUndoReportsWhichEmergency() {
+    DispatchCoordinator dc = makeCity();
+    const int first = dc.registerEmergency(EmergencyType::Cardiac, B);
+    const int second = dc.registerEmergency(EmergencyType::Trauma, B);
+    dc.dispatchNext();
+    dc.dispatchNext();
+
+    int undone = 0;
+    CHECK(dc.undoLastDispatch(undone));
+    CHECK_EQ(undone, second);
+    CHECK(dc.undoLastDispatch(undone));
+    CHECK_EQ(undone, first);
+    CHECK(!dc.undoLastDispatch(undone));
+    CHECK_EQ(undone, -1);
+}
+
+static void testActiveDispatchesTracked() {
+    DispatchCoordinator dc = makeCity();
+    CHECK(dc.activeDispatches().empty());
+
+    const int first = dc.registerEmergency(EmergencyType::Cardiac, B);
+    const int second = dc.registerEmergency(EmergencyType::Trauma, E);
+    const DispatchResult r1 = dc.dispatchNext();
+    const DispatchResult r2 = dc.dispatchNext();
+
+    std::vector<DispatchResult> active = dc.activeDispatches();
+    CHECK_EQ(active.size(), 2u);
+    CHECK_EQ(active[0].emergencyId, first);
+    CHECK_EQ(active[1].emergencyId, second);
+    CHECK(sameRoute(active[0].routeToScene, r1.routeToScene));
+    CHECK(sameRoute(active[1].routeToHospital, r2.routeToHospital));
+    CHECK_EQ(active[1].ambulanceId, r2.ambulanceId);
+
+    dc.undoLastDispatch();
+    active = dc.activeDispatches();
+    CHECK_EQ(active.size(), 1u);
+    CHECK_EQ(active[0].emergencyId, first);
+
+    dc.completeDispatch(first);
+    CHECK(dc.activeDispatches().empty());
+
+    dc.dispatchNext();
+    active = dc.activeDispatches();
+    CHECK_EQ(active.size(), 1u);
+    CHECK_EQ(active[0].emergencyId, second);
+}
+
+static void testFailedDispatchNotActive() {
+    DispatchCoordinator dc = makeCity(/*bedsAtD=*/0, /*bedsAtF=*/0);
+    dc.registerEmergency(EmergencyType::Trauma, B);
+    CHECK(dc.dispatchNext().status == DispatchStatus::NoHospitalAvailable);
+    CHECK(dc.activeDispatches().empty());
+}
+
 static void testUndoIsLastInFirstOut() {
     DispatchCoordinator dc = makeCity();
     const int first = dc.registerEmergency(EmergencyType::Cardiac, B);
@@ -277,6 +331,9 @@ int main() {
     testFullHospitalsFallbackThenRefuse();
     testOfflineAndUnreachableAmbulancesSkipped();
     testUndoRestoresEverything();
+    testUndoReportsWhichEmergency();
+    testActiveDispatchesTracked();
+    testFailedDispatchNotActive();
     testUndoIsLastInFirstOut();
     testCompleteDispatch();
     testUndoSkipsCompletedDispatches();
