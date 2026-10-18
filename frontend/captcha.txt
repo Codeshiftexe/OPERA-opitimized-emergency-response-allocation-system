@@ -1,0 +1,31 @@
+# ==========================================================================
+# OPERA  |  captcha.txt
+# One captcha code per line. The sign-in page picks one of these at random
+# and shows it; the user must type it in. Lines starting with # are comments.
+#
+#   - 20 different codes, 6 characters each, letters and digits.
+#   - 0/O and 1/I are left out so nothing can be misread.
+#   - Typing is not case sensitive.
+# To make a new list, replace the lines below (keep at least 2 codes).
+# ==========================================================================
+
+L8MV2N
+ZFTY5G
+RU7G43
+XXSAYU
+36C8Y9
+YRW293
+QGM42R
+3RNSG6
+J6FMU5
+E5RVLX
+TYF4X7
+XKWZQ4
+9A5NTL
+SFXQQG
+UHU77M
+VKFX93
+U8GX6F
+D65LGN
+WAWTFY
+NZYPM7
