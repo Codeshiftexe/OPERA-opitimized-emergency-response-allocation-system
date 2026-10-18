@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OPERA · Live tracking</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="opera.css">
+</head>
+<body>
+<noscript><p class="setup">JavaScript is turned off in this browser. OPERA needs it.</p></noscript>
+
+<!-- Opened by opera.js after a successful dispatch: track.html?id=<emergency id>.
+     Everything shown comes from the C++ server; see track.js. -->
+<div id="op">
+  <div class="top">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><polyline points="5,23 12,14 19,19 27,8" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="5" cy="23" r="2.8" fill="#fff"/><circle cx="12" cy="14" r="2.4" fill="#fff"/><circle cx="19" cy="19" r="2.4" fill="#fff"/><circle cx="27" cy="8" r="3.4" fill="#FFE1D8" stroke="#fff" stroke-width="1.4"/></svg></span>
+      <span class="brand-txt"><b>OPERA</b><span class="s">Live tracking</span></span>
+    </div>
+    <div class="tb">
+      <span class="chip" id="conn">Connecting…</span>
+      <span class="chip who" id="who"></span>
+      <a class="b dk sm" href="opera.html" style="text-decoration:none"><i class="ti ti-arrow-left" aria-hidden="true"></i>Dashboard</a>
+    </div>
+  </div>
+  <div id="flash" class="flash" role="status" aria-live="polite" hidden></div>
+
+  <!-- Undo, offered for 10 seconds after a dispatch (see track.js) -->
+  <div id="undoBar" class="undobar" role="region" aria-label="Undo dispatch" hidden>
+    <i class="ti ti-arrow-back-up" aria-hidden="true"></i>
+    <span id="undoTxt">Dispatched. Wrong call?</span>
+    <button class="b" id="undoBtn"><span>Undo dispatch (<span id="undoSec">10</span> s)</span></button>
+    <span class="uf" id="undoFill"></span>
+  </div>
+
+  <!-- shown instead of the tracker when there is nothing to track -->
+  <div id="msg" class="card" hidden>
+    <h3 id="msgT"></h3>
+    <p id="msgB" class="sub"></p>
+    <a class="b pr" href="opera.html" style="text-decoration:none;width:auto;display:inline-flex"><i class="ti ti-arrow-left" aria-hidden="true"></i>Back to dashboard</a>
+  </div>
+
+  <div id="view" hidden>
+    <div class="ph">
+      <a class="b" href="opera.html" style="text-decoration:none"><i class="ti ti-arrow-left" aria-hidden="true"></i>Back to dashboard</a>
+      <div class="pt"><span class="ic" style="background:#0B5CAD"><i class="ti ti-ambulance" aria-hidden="true"></i></span><div><h3 id="title"></h3><small id="sub"></small></div></div>
+    </div>
+    <div class="tgrid">
+      <div class="card" style="padding:8px">
+        <svg id="tmap" viewBox="0 0 640 400" role="img" aria-label="City map with the ambulance moving along its route" style="background:#F6F8F8;border-radius:8px;width:100%;height:auto"></svg>
+        <div class="leg">
+          <span><i style="width:16px;border-top:5px solid #0B5CAD"></i>Route still ahead</span>
+          <span><i style="width:16px;border-top:3px dashed #A9C8E8"></i>Route already driven</span>
+          <span><i style="width:10px;height:10px;border-radius:50%;background:#C62F1A"></i>Patient</span>
+          <span><i style="width:10px;height:10px;border-radius:2px;background:#1B7143"></i>Hospital</span>
+          <span><i style="width:14px;height:9px;border-radius:2px;background:#0B5CAD"></i>Ambulance</span>
+        </div>
+        <div class="sub" style="padding:0 4px 4px">The route and every road time come from the C++ engine (Dijkstra). This page moves the ambulance along exactly that route; the engine records the delivery when you confirm it.</div>
+      </div>
+      <div id="side" style="display:flex;flex-direction:column;gap:10px;min-width:0"></div>
+    </div>
+  </div>
+</div>
+
+<script src="track.js"></script>
+</body>
+</html>
