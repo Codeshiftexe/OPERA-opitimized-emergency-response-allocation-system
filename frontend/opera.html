@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OPERA · Sign in</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="opera.css">
+</head>
+<body>
+<noscript><p class="setup">JavaScript is turned off in this browser. OPERA needs it.</p></noscript>
+
+
+<!-- ======================= SIGN IN ======================= -->
+<main id="login" class="lg" aria-labelledby="lgT">
+  <section class="lg-art" aria-hidden="true">
+    <svg class="lg-lines" viewBox="0 0 400 640" preserveAspectRatio="xMidYMid slice">
+      <g fill="none" stroke="#1B3A40" stroke-width="2">
+        <polyline points="-10,520 70,470 150,520 240,430 330,470 410,380"/>
+        <polyline points="40,640 110,560 200,590 280,520"/>
+        <polyline points="-10,330 80,290 170,340 260,260 350,300 410,230"/>
+        <polyline points="120,180 200,140 290,170 380,100"/>
+      </g>
+      <polyline points="150,520 240,430 330,470" fill="none" stroke="#0B5CAD" stroke-width="4" stroke-linejoin="round"/>
+      <g fill="#0C2226" stroke="#2C5258" stroke-width="2">
+        <circle cx="70" cy="470" r="7"/><circle cx="150" cy="520" r="7"/><circle cx="240" cy="430" r="7"/><circle cx="330" cy="470" r="7"/>
+        <circle cx="80" cy="290" r="7"/><circle cx="260" cy="260" r="7"/><circle cx="200" cy="140" r="7"/>
+      </g>
+      <circle cx="150" cy="520" r="9" fill="#C62F1A"/>
+      <rect x="319" y="459" width="22" height="22" rx="4" fill="#1B7143"/>
+    </svg>
+    <div class="lg-brand"><b>OPERA</b><span>Optimized Emergency Response Allocation</span></div>
+    <p class="lg-line">Every call ranked, every ambulance placed, every route computed by the C++ engine.</p>
+  </section>
+  <section class="lg-form">
+    <form id="lform" autocomplete="off" novalidate>
+      <div>
+        <h1 id="lgT">Sign in</h1>
+        <p class="lg-sub">Use the name and password your administrator gave you.</p>
+      </div>
+      <label>Name<input type="text" id="l_name" autocomplete="username" spellcheck="false"></label>
+      <label>Password<input type="password" id="l_pass" autocomplete="current-password"></label>
+      <div class="cap">
+        <div class="cap-row">
+          <div class="capbox" id="capBox" role="img" aria-label="Captcha code. Type the characters you see."></div>
+          <button type="button" class="b" id="capNew" aria-label="Show a different captcha code"><i class="ti ti-refresh" aria-hidden="true"></i></button>
+        </div>
+        <label>Type the characters shown above<input type="text" id="l_cap" maxlength="10" autocomplete="off" autocapitalize="characters" spellcheck="false"></label>
+      </div>
+      <div class="lg-err" id="lerr" role="alert"></div>
+      <button type="submit" class="b tl" id="lgo"><i class="ti ti-lock-open" aria-hidden="true"></i>Sign in</button>
+      <div class="lg-pw" id="lsrv" role="status"><span class="lg-warn">Looking for the OPERA server…</span></div>
+      <details class="lg-help">
+        <summary>Make a passwords.txt line</summary>
+        <div class="lg-mk">
+          <label>Name<input type="text" id="mk_name" maxlength="30"></label>
+          <label>Role<select id="mk_role"><option value="operator">Operator</option><option value="admin">Admin</option></select></label>
+          <label>Password (8 or more characters)<input type="password" id="mk_pass" autocomplete="new-password"></label>
+          <button type="button" class="b" id="mkline"><i class="ti ti-key" aria-hidden="true"></i>Make line</button>
+          <textarea id="mk_out" readonly rows="3" aria-label="The line to paste into passwords.txt"></textarea>
+          <div class="lg-note" id="mk_msg" role="status"></div>
+        </div>
+      </details>
+    </form>
+  </section>
+</main>
+
+<!-- ======================= APP ======================= -->
+<div id="op" hidden>
+  <div class="top">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><polyline points="5,23 12,14 19,19 27,8" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="5" cy="23" r="2.8" fill="#fff"/><circle cx="12" cy="14" r="2.4" fill="#fff"/><circle cx="19" cy="19" r="2.4" fill="#fff"/><circle cx="27" cy="8" r="3.4" fill="#FFE1D8" stroke="#fff" stroke-width="1.4"/></svg></span>
+      <span class="brand-txt"><b>OPERA</b><span class="s">Optimized Emergency Response Allocation</span></span>
+    </div>
+    <div class="tb">
+      <span class="chip" id="conn">Connecting…</span>
+      <span class="chip who" id="who"></span>
+      <button class="b dk sm" id="logout"><i class="ti ti-logout" aria-hidden="true"></i>Sign out</button>
+    </div>
+  </div>
+  <div id="flash" class="flash" role="status" aria-live="polite" hidden></div>
+
+  <!-- dashboard -->
+  <div id="home">
+    <!-- top row: Dispatch desk (left) and the scrolling activity log (top right) -->
+    <div class="toprow">
+      <section class="hero" aria-labelledby="heroTg">
+        <h1 class="hero-h"><button class="hero-tg" id="heroTg" aria-expanded="false" aria-controls="heroMore">Dispatch desk<i class="ti ti-chevron-down hero-ch" aria-hidden="true"></i></button></h1>
+        <div class="hero-txt" id="heroMore" hidden>
+          <p>Register emergencies and dispatch them. The C++ engine ranks the queue, picks the nearest available ambulance and the nearest hospital with a free bed.</p>
+          <p id="heroRole"></p>
+          <p class="hero-now" id="heroNow"></p>
+        </div>
+      </section>
+      <section class="card logcard" aria-labelledby="logT">
+        <h3 id="logT">Activity log <small>newest first · hover to pause</small></h3>
+        <div class="ticker" id="log" tabindex="0" aria-label="Activity log, scrolling. Hover or focus to pause."></div>
+      </section>
+    </div>
+
+    <div class="grid">
+      <div class="col">
+        <div class="card reg xl">
+          <div class="rhead"><i class="ti ti-plus" aria-hidden="true"></i><span>Register emergency</span></div>
+          <div class="two">
+            <label>Type<select id="type"></select></label>
+            <label>Location<select id="loc"></select></label>
+          </div>
+          <div class="sevx" id="typeInfo" role="status" aria-live="polite"></div>
+          <div class="two">
+            <button class="b pr" id="reg"><i class="ti ti-plus" aria-hidden="true" style="font-size:22px"></i>Register</button>
+            <button class="b tl" id="disp"><i class="ti ti-ambulance" aria-hidden="true" style="font-size:22px"></i>Dispatch next</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Emergency queue <span class="qn" id="qCount"></span> <small>serve order from the engine’s triage heap</small></h3>
+          <input type="search" id="find" placeholder="#4, cardiac, assigned" aria-label="Filter queue">
+          <div id="queue" class="qlist"></div>
+        </div>
+      </div>
+      <div class="col">
+        <!-- small Ambulances / Hospitals buttons; their numbers replace the old top-bar stats -->
+        <div class="mini2">
+          <button class="b big amb mini" id="bAmb"><span class="ic"><i class="ti ti-ambulance" aria-hidden="true"></i></span><span class="tx"><b>Ambulances</b><span id="bAmbS"></span></span><i class="ti ti-chevron-right ch" aria-hidden="true"></i></button>
+          <button class="b big hos mini" id="bHos"><span class="ic"><i class="ti ti-building-hospital" aria-hidden="true"></i></span><span class="tx"><b>Hospitals</b><span id="bHosS"></span></span><i class="ti ti-chevron-right ch" aria-hidden="true"></i></button>
+        </div>
+        <div class="card" style="border:2px solid var(--rt)">
+          <h3 id="rh">Response</h3>
+          <div class="facts" id="facts"></div>
+          <div class="path mono" id="path"></div>
+          <div class="tb" id="respAct"></div>
+        </div>
+        <div class="card">
+          <h3>Active dispatches <span class="qn qb" id="activeN">0</span> <small>ambulances on a call</small></h3>
+          <div id="active" class="alist"></div>
+        </div>
+        <div class="card">
+          <h3>Hospital beds <small>free of total, from the engine</small></h3>
+          <div id="beds" class="blist"></div>
+        </div>
+        <!-- See map: bottom right, with a live preview -->
+        <button class="mapbtn mapbr mapprev" id="seeMap" aria-label="See map">
+          <span class="mrow"><span class="mi"><i class="ti ti-map-2" aria-hidden="true"></i></span><span class="mt"><b>See map</b><span id="mapSub"></span></span><i class="ti ti-chevron-right ch" aria-hidden="true"></i></span>
+          <svg id="miniMap" viewBox="0 0 640 380" aria-hidden="true"></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- map -->
+  <div id="mapview" hidden>
+    <div class="ph">
+      <button class="b" id="mapBack"><i class="ti ti-arrow-left" aria-hidden="true"></i>Back to dashboard</button>
+      <div class="pt"><span class="ic" style="background:#0C2226"><i class="ti ti-map-2" aria-hidden="true"></i></span><div><h3>City road network</h3><small id="gname"></small></div></div>
+    </div>
+    <div class="card">
+      <div class="mh">
+        <span class="chip" id="focusChip">No emergency selected</span>
+        <div class="tb">
+          <button class="b sm tw on" id="tW" aria-pressed="true"><i class="ti ti-numbers" aria-hidden="true"></i>Weights</button>
+        </div>
+      </div>
+      <div class="stage">
+        <svg id="map" viewBox="0 0 640 380" role="img" aria-label="Road graph with hospitals, ambulances and emergencies"></svg>
+        <div class="zoom">
+          <button class="b" id="zin" aria-label="Zoom in"><i class="ti ti-plus" aria-hidden="true"></i></button>
+          <button class="b" id="zout" aria-label="Zoom out"><i class="ti ti-minus" aria-hidden="true"></i></button>
+          <button class="b" id="zres" aria-label="Reset view"><i class="ti ti-arrows-maximize" aria-hidden="true"></i></button>
+        </div>
+      </div>
+      <div class="leg">
+        <span><i style="width:16px;border-top:3px dashed #0B5CAD"></i>Ambulance to scene</span>
+        <span><i style="width:16px;border-top:5px solid #0B5CAD"></i>Scene to hospital</span>
+        <span><i style="width:10px;height:10px;border-radius:50%;background:#C62F1A"></i>Emergency</span>
+        <span><i style="width:10px;height:10px;border-radius:2px;background:#1B7143"></i>Hospital</span>
+        <span><i style="width:14px;height:9px;border-radius:2px;background:#1B7143"></i>Ambulance (green available, blue on a call, grey offline)</span>
+        <span>Select an emergency in the queue to draw its route. Click a node for its page. Drag to pan when zoomed.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ambulances, hospitals, node pages -->
+  <div id="page" hidden><div id="pg"></div></div>
+</div>
+
+<script src="opera.js"></script>
+</body>
+</html>
