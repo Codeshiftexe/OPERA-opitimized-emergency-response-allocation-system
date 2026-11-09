@@ -238,4 +238,16 @@ void writeDispatchResult(JsonWriter& w, const DispatchResult& r) {
         .endObject();
 }
 
+void writeBatchResult(JsonWriter& w, const BatchResult& b) {
+    w.beginObject().key("batch").value(true).key("dispatches").beginArray();
+    for (const DispatchResult& r : b.results) {
+        writeDispatchResult(w, r);
+    }
+    w.endArray()
+        .key("cost").value(b.cost)
+        .key("greedyCost").value(b.greedyCost)
+        .key("explored").value(static_cast<double>(b.explored))
+        .endObject();
+}
+
 }  // namespace opera

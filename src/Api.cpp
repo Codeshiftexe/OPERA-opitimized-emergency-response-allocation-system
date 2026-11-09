@@ -98,8 +98,9 @@ ApiResponse Api::handle(const std::string& method, const std::string& path,
 
         const bool isDispatch = path == "/api/dispatch";
         const bool isUndo = path == "/api/undo";
+        const bool isBatch = path == "/api/dispatch/batch";
         const auto route = postRoutes.find(path);
-        if (!isDispatch && !isUndo && route == postRoutes.end()) {
+        if (!isDispatch && !isUndo && !isBatch && route == postRoutes.end()) {
             return reply({404, false, "Unknown route " + path + ".", false, {}}, user);
         }
         if (method != "POST") {
@@ -111,6 +112,7 @@ ApiResponse Api::handle(const std::string& method, const std::string& path,
         }
 
         if (isDispatch) return reply(dispatchNext(), user);
+        if (isBatch) return reply(dispatchBatch(), user);
         if (isUndo) return reply(undo(), user);
         return reply((this->*(route->second))(in), user);
     } catch (const std::exception& ex) {
@@ -195,6 +197,54 @@ Api::Outcome Api::dispatchNext() {
                         where + ". It stays at the front of the queue.";
             break;
     }
+    record(o.message);
+    return o;
+}
+
+Api::Outcome Api::dispatchBatch() {
+    const BatchResult b = coord_.dispatchBatch();
+    Outcome o{409, false, "", false, {}};
+    o.hasBatch = true;
+    o.batch = b;
+
+    if (b.results.size() == 1 && b.results[0].status == DispatchStatus::NoPendingEmergency) {
+        o.message = "No emergency is waiting.";
+        record(o.message);
+        return o;
+    }
+    std::string sent;
+    std::string waiting;
+    int count = 0;
+    for (const DispatchResult& r : b.results) {
+        const std::string em = "#" + std::to_string(r.emergencyId);
+        if (r.status == DispatchStatus::Dispatched) {
+            char minutes[32];
+            std::snprintf(minutes, sizeof minutes, " (%.1f min)", r.minutesToScene);
+            sent += (count++ ? ", " : "") + em + " <- " + ambulanceLabel(r.ambulanceId) + minutes;
+        } else {
+            waiting += " " + em + (r.status == DispatchStatus::NoHospitalAvailable
+                                       ? " stays queued: no reachable hospital has a free bed."
+                                       : " stays queued: no free ambulance can reach it.");
+        }
+    }
+    if (count == 0) {
+        o.message = "Nothing could be dispatched." + waiting;
+        record(o.message);
+        return o;
+    }
+    o.status = 200;
+    o.ok = true;
+    o.message = "Batch dispatch of " + std::to_string(count) + ": " + sent + ".";
+    if (b.greedyCost > 0.0 && b.cost < b.greedyCost - 1e-9) {
+        char cmp[160];
+        std::snprintf(cmp, sizeof cmp,
+                      " Priority-weighted travel time %.0f instead of %.0f one at a time (%.0f%% less).",
+                      b.cost, b.greedyCost, 100.0 * (b.greedyCost - b.cost) / b.greedyCost);
+        o.message += cmp;
+    } else if (count > 1) {
+        o.message += " Same plan as dispatching one at a time.";
+    }
+    o.message += waiting;
     record(o.message);
     return o;
 }
@@ -324,7 +374,9 @@ Api::Outcome Api::advanceClock(const JsonObject& in) {
 ApiResponse Api::reply(const Outcome& o, const User* user, const std::string& token) const {
     JsonWriter w;
     w.beginObject().key("ok").value(o.ok).key("message").value(o.message).key("result");
-    if (o.hasResult) {
+    if (o.hasBatch) {
+        writeBatchResult(w, o.batch);
+    } else if (o.hasResult) {
         writeDispatchResult(w, o.result);
     } else {
         w.null();

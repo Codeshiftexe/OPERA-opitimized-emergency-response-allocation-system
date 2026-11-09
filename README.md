@@ -12,6 +12,9 @@ A C++ engine makes every decision; a web interface shows them on a live city map
 - **Dispatch** the top emergency: Dijkstra's algorithm finds the nearest available
   ambulance and the nearest hospital with a free bed; a bed is reserved and the
   ambulance is marked busy.
+- **Dispatch a batch**: when several emergencies wait, the most urgent ones are
+  served together and backtracking chooses which ambulance goes where, so the
+  total priority-weighted travel time is lowest (one at a time can be far worse).
 - **Track** the dispatch on a live page where the ambulance follows the route the
   engine computed.
 - **Undo** a dispatch within 10 seconds, **deliver** the patient, **discharge** a
@@ -25,6 +28,7 @@ A C++ engine makes every decision; a web interface shows them on a live city map
 | Templated binary min-heap | Triage queue, Dijkstra's frontier | `include/MinHeap.hpp` |
 | Weighted graph (adjacency list) | City road network | `include/Graph.hpp`, `src/Graph.cpp` |
 | Dijkstra with lazy deletion + path reconstruction | Fastest routes | `src/RoutingEngine.cpp` |
+| Backtracking with pruning | Best ambulance-to-emergency assignment for a batch | `src/BatchPlanner.cpp` |
 | Linked-list stack | Undo history of dispatches | `include/Stack.hpp` |
 | Class hierarchy with polymorphism | Cardiac / Trauma / Transfer emergencies | `include/Emergency.hpp` |
 | State machines | Ambulance (available / busy / offline), hospital beds | `src/Ambulance.cpp`, `src/Hospital.cpp` |
@@ -63,8 +67,9 @@ Then open `http://localhost:8080`.
 
 ## Testing
 
-14 test programs, 778 checks, covering the data structures, routing, domain
-classes, dispatch, loader, JSON, API and sign-in. All pass with C++14 and C++17.
+15 test programs, 878 checks, covering the data structures, routing, domain
+classes, dispatch, batch dispatch, loader, JSON, API and sign-in. All pass with
+C++14 and C++17.
 
 ## Planned
 

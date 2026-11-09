@@ -139,6 +139,16 @@ async function dispatchNext() {
     }
   }
 }
+// Several emergencies at once: the engine plans the whole batch (backtracking),
+// so no tracking page opens; the trips show on the dashboard and the map.
+async function dispatchBatch() {
+  const d = await call('POST', '/api/dispatch/batch');
+  if (!d || !d.result || !d.result.dispatches) return;
+  const sent = d.result.dispatches.filter(r => r.status === 'Dispatched' && r.emergency !== null);
+  sent.forEach(r => { trips[r.emergency] = Date.now(); arrivedSaid.delete(r.emergency); });
+  if (sent.length) { saveTrips(); focus = sent[0].emergency; }
+  renderAll();
+}
 const complete = id => call('POST', '/api/emergencies/complete', {id});
 const discharge = id => call('POST', '/api/hospitals/discharge', {id});
 const setOnline = (id, online) => call('POST', '/api/ambulances/status', {id, online});
@@ -610,6 +620,7 @@ function selectEmergency(id) { focus = id; renderAll(); }
 
 $('reg').onclick = registerEmergency;
 $('disp').onclick = dispatchNext;
+$('dispAll').onclick = dispatchBatch;
 $('type').onchange = updTypeInfo;
 $('loc').onchange = () => { if (page === 'map') renderMap(); };
 $('find').oninput = () => renderQueue();

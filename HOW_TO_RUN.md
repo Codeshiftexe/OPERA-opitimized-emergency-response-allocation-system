@@ -63,11 +63,11 @@ keep the default port 8080: that is where the page looks for the server.)
 From the repository folder, for any test file (example: the dispatch tests):
 
 ```
-g++ -std=c++17 -Iinclude tests/test_dispatch.cpp src/Graph.cpp src/RoutingEngine.cpp src/Ambulance.cpp src/Hospital.cpp src/Emergency.cpp src/Registry.cpp src/TriageQueue.cpp src/DispatchCoordinator.cpp src/CityLoader.cpp src/Json.cpp src/StateJson.cpp src/Api.cpp src/Sha256.cpp src/Auth.cpp -o test_dispatch
+g++ -std=c++17 -Iinclude tests/test_dispatch.cpp src/Graph.cpp src/RoutingEngine.cpp src/Ambulance.cpp src/Hospital.cpp src/Emergency.cpp src/Registry.cpp src/TriageQueue.cpp src/BatchPlanner.cpp src/DispatchCoordinator.cpp src/CityLoader.cpp src/Json.cpp src/StateJson.cpp src/Api.cpp src/Sha256.cpp src/Auth.cpp -o test_dispatch
 ./test_dispatch
 ```
 
-Use the same command with `test_api`, `test_auth`, `test_json`, `test_loader`,
+Use the same command with `test_batch`, `test_api`, `test_auth`, `test_json`, `test_loader`,
 `test_stack_edge` or any original test. (`src/main.cpp` and `src/HttpServer.cpp`
 are left out of test builds because they hold the program's `main()` and the sockets.)
 

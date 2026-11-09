@@ -24,6 +24,7 @@ add_library(opera_core STATIC
     src/Emergency.cpp
     src/Registry.cpp
     src/TriageQueue.cpp
+    src/BatchPlanner.cpp
     src/DispatchCoordinator.cpp
     src/CityLoader.cpp
 )
@@ -56,7 +57,7 @@ target_compile_definitions(opera_server PRIVATE
 # Tests: one program per file in tests/.
 enable_testing()
 foreach(t test_heap test_stack test_stack_edge test_graph test_routing test_resources
-          test_emergency test_registry test_triage test_dispatch test_loader)
+          test_emergency test_registry test_triage test_dispatch test_batch test_loader)
     add_executable(${t} tests/${t}.cpp)
     target_link_libraries(${t} PRIVATE opera_core)
     add_test(NAME ${t} COMMAND ${t})
