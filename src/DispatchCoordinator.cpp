@@ -51,18 +51,25 @@ DispatchResult DispatchCoordinator::dispatchNext() {
         return result;
     }
 
-    // Everything was checked above, so a refusal here means a bug, not a
+    queue_.pop();
+    return commit(e, amb, hosp);
+}
+
+DispatchResult DispatchCoordinator::commit(Emergency* e, const NearestResult& amb,
+                                           const NearestResult& hosp) {
+    // Everything was checked by the caller, so a refusal here means a bug, not a
     // normal situation.
     Ambulance* ambulance = registry_.ambulance(amb.id);
     Hospital* hospital = registry_.hospital(hosp.id);
-    queue_.pop();
-    if (!ambulance->assignTo(e->id()) || !hospital->reserveBed() ||
-        !e->assign(amb.id, hosp.id)) {
-        throw std::logic_error("DispatchCoordinator::dispatchNext - checked resource refused");
+    if (ambulance == nullptr || hospital == nullptr || !ambulance->assignTo(e->id()) ||
+        !hospital->reserveBed() || !e->assign(amb.id, hosp.id)) {
+        throw std::logic_error("DispatchCoordinator::commit - checked resource refused");
     }
     history_.push(DispatchRecord{e->id(), amb.id, hosp.id});
 
+    DispatchResult result;
     result.status = DispatchStatus::Dispatched;
+    result.emergencyId = e->id();
     result.ambulanceId = amb.id;
     result.hospitalId = hosp.id;
     result.routeToScene = amb.route;
@@ -72,6 +79,65 @@ DispatchResult DispatchCoordinator::dispatchNext() {
     result.meetsTarget = e->meetsTarget(clock_, amb.minutes);
     active_[e->id()] = result;
     return result;
+}
+
+BatchResult DispatchCoordinator::dispatchBatch() {
+    BatchResult out;
+    int freeAmbulances = 0;
+    for (const Ambulance* a : registry_.ambulances()) {
+        if (a->status() == AmbulanceStatus::Available) ++freeAmbulances;
+    }
+    const int maxCases = BatchPlanner::kMaxCases;  // copy: std::min needs this before C++17
+    const std::size_t limit = static_cast<std::size_t>(std::min(freeAmbulances, maxCases));
+
+    // Take the most urgent cases off the queue; any not served go back below.
+    std::vector<Emergency*> cases;
+    while (cases.size() < limit && !queue_.empty()) {
+        cases.push_back(queue_.pop());
+    }
+    if (cases.empty()) {
+        DispatchResult none;
+        none.status = queue_.empty() ? DispatchStatus::NoPendingEmergency
+                                     : DispatchStatus::NoAmbulanceAvailable;
+        if (!queue_.empty()) none.emergencyId = queue_.peek()->id();
+        out.results.push_back(none);
+        return out;
+    }
+
+    const std::vector<const Emergency*> view(cases.begin(), cases.end());
+    const BatchPlan plan = BatchPlanner::plan(registry_, view, clock_);
+    out.cost = plan.cost;
+    out.greedyCost = plan.greedyCost;
+    out.greedyAssigned = plan.greedyAssigned;
+    out.explored = plan.explored;
+
+    for (Emergency* e : cases) {
+        const BatchAssignment* chosen = nullptr;
+        for (const BatchAssignment& b : plan.assignments) {
+            if (b.emergencyId == e->id()) chosen = &b;
+        }
+        DispatchResult r;
+        r.emergencyId = e->id();
+        if (chosen == nullptr) {
+            r.status = DispatchStatus::NoAmbulanceAvailable;
+        } else {
+            const NearestResult hosp = registry_.nearestHospitalWithBed(e->nodeId());
+            if (!hosp.found()) {
+                r.status = DispatchStatus::NoHospitalAvailable;
+            } else {
+                NearestResult amb;
+                amb.id = chosen->ambulanceId;
+                amb.minutes = chosen->minutes;
+                amb.route = chosen->route;
+                r = commit(e, amb, hosp);
+            }
+        }
+        if (r.status != DispatchStatus::Dispatched) {
+            queue_.push(e);   // still Pending: back in its place in the queue
+        }
+        out.results.push_back(r);
+    }
+    return out;
 }
 
 bool DispatchCoordinator::undoLastDispatch() {

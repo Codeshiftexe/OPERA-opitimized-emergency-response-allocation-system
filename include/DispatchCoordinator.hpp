@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "BatchPlanner.hpp"
 #include "Emergency.hpp"
 #include "Registry.hpp"
 #include "Stack.hpp"
@@ -32,6 +33,15 @@ struct DispatchResult {
     bool meetsTarget = false;
 };
 
+// The outcome of dispatching several emergencies together.
+struct BatchResult {
+    std::vector<DispatchResult> results;   // one per case considered, most urgent first
+    double cost = 0.0;                     // priority x minutes over the cases served
+    double greedyCost = 0.0;               // the same, had they been dispatched one at a time
+    int greedyAssigned = 0;
+    long long explored = 0;                // backtracking search calls
+};
+
 class DispatchCoordinator {
 public:
     explicit DispatchCoordinator(Registry registry);
@@ -43,6 +53,12 @@ public:
     // Serves the most urgent pending emergency. If it cannot be served,
     // nothing changes and the emergency stays queued.
     DispatchResult dispatchNext();
+
+    // Serves the most urgent waiting emergencies together (as many as there are
+    // free ambulances, at most BatchPlanner::kMaxCases), choosing which ambulance
+    // goes where by backtracking. Hospitals are then given out most urgent first.
+    // Cases that cannot be served stay queued, and nothing about them changes.
+    BatchResult dispatchBatch();
 
     // Reverses the most recent dispatch that has not been completed yet.
     bool undoLastDispatch();
@@ -75,6 +91,10 @@ private:
     };
 
     Emergency* emergencyById(int id);
+
+    // Assigns the ambulance and bed, records the dispatch for undo, and builds
+    // the result. Callers check everything first and remove e from the queue.
+    DispatchResult commit(Emergency* e, const NearestResult& amb, const NearestResult& hosp);
 
     Registry registry_;
     std::unordered_map<int, std::unique_ptr<Emergency>> emergencies_;

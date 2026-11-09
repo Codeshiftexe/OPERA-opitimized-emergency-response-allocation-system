@@ -24,6 +24,7 @@ add_library(opera_core STATIC
     src/Emergency.cpp
     src/Registry.cpp
     src/TriageQueue.cpp
+    src/BatchPlanner.cpp
     src/DispatchCoordinator.cpp
     src/CityLoader.cpp
 )
