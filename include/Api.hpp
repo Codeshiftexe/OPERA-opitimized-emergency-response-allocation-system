@@ -14,6 +14,7 @@
 //   GET  /api/state
 //   POST /api/emergencies            {"type":"Cardiac|Trauma|Transfer","node":3}
 //   POST /api/dispatch               {}
+//   POST /api/dispatch/batch         {}   most urgent cases together, ambulances chosen by backtracking
 //   POST /api/undo                   {}
 //   POST /api/emergencies/complete   {"id":4}
 //   POST /api/hospitals/discharge    {"id":2}   (only beds of patients who have arrived)
@@ -29,6 +30,7 @@
 // 500 engine invariant broke.
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "Auth.hpp"
@@ -56,17 +58,26 @@ public:
 
 private:
     struct Outcome {
-        int status = 200;
-        bool ok = true;
+        // Lets every handler keep writing {status, ok, message, hasResult, result}.
+        Outcome(int status_ = 200, bool ok_ = true, std::string message_ = "",
+                bool hasResult_ = false, DispatchResult result_ = DispatchResult())
+            : status(status_), ok(ok_), message(std::move(message_)), hasResult(hasResult_),
+              result(std::move(result_)) {}
+
+        int status;
+        bool ok;
         std::string message;
-        bool hasResult = false;
+        bool hasResult;
         DispatchResult result;
+        bool hasBatch = false;
+        BatchResult batch;
     };
 
     ApiResponse login(const JsonObject& in);
 
     Outcome registerEmergency(const JsonObject& in);
     Outcome dispatchNext();
+    Outcome dispatchBatch();
     Outcome undo();
     Outcome complete(const JsonObject& in);
     Outcome discharge(const JsonObject& in);

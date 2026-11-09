@@ -25,6 +25,9 @@ void writeState(JsonWriter& w, const DispatchCoordinator& coordinator, const Map
 
 void writeDispatchResult(JsonWriter& w, const DispatchResult& r);
 
+// {"batch":true,"dispatches":[...],"cost":..,"greedyCost":..,"explored":..}
+void writeBatchResult(JsonWriter& w, const BatchResult& b);
+
 // A dispatch can be undone while at least one emergency is Assigned.
 // Why this is exact: dispatchNext pushes a record for every assignment;
 // undoLastDispatch skips only records whose emergency is no longer Assigned.
