@@ -305,6 +305,37 @@ void testOperatorCannotChangeAmbulances() {
     CHECK(has(w.get("/api/state"), R"("user":"op","text":"Registered #1)"));
 }
 
+// Batch route: Cardiac at B and Trauma at E are served together.
+void testBatchDispatch() {
+    World w;
+    ApiResponse r = w.post("/api/dispatch/batch");
+    CHECK_EQ(r.status, 409);
+    CHECK(has(r, "No emergency is waiting."));
+    CHECK_EQ(w.get("/api/dispatch/batch").status, 405);
+
+    w.post("/api/emergencies", R"({"type":"Cardiac","node":1})");
+    w.post("/api/emergencies", R"({"type":"Trauma","node":4})");
+    r = w.post("/api/dispatch/batch");
+    CHECK_EQ(r.status, 200);
+    CHECK(has(r, "Batch dispatch of 2: #1 <- Ambulance 11 (3.0 min), #2 <- Ambulance 10 (2.0 min)."));
+    CHECK(has(r, R"("result":{"batch":true,"dispatches":[{"status":"Dispatched","emergency":1,"ambulance":11)"));
+    CHECK(has(r, R"("queue":[])"));
+    CHECK(w.em(1).status() == EmergencyStatus::Assigned);
+    CHECK(w.em(2).status() == EmergencyStatus::Assigned);
+
+    r = w.post("/api/undo");                       // batch dispatches undo one at a time
+    CHECK_EQ(r.status, 200);
+    CHECK(has(r, "Undid the dispatch of #2"));
+
+    // Every ambulance busy: nothing is sent and the case keeps its place.
+    w.post("/api/emergencies", R"({"type":"Transfer","node":3})");
+    w.post("/api/dispatch");
+    w.post("/api/dispatch");
+    r = w.post("/api/dispatch/batch");
+    CHECK_EQ(r.status, 409);
+    CHECK(has(r, "stays queued: no free ambulance can reach it."));
+}
+
 }  // namespace
 
 int main() {
@@ -319,5 +350,6 @@ int main() {
     testLogNewestFirst();
     testSignInRules();
     testOperatorCannotChangeAmbulances();
+    testBatchDispatch();
     return report("test_api");
 }
