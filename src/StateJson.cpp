@@ -68,8 +68,15 @@ void writeMap(JsonWriter& w, const Graph& roads, const MapLayout& layout) {
             .key("id").value(id)
             .key("name").value(roads.nodeName(id))
             .key("x").value(p.x)
-            .key("y").value(p.y)
-            .endObject();
+            .key("y").value(p.y);
+        // real-world coordinates, used by GPS tracking (null if the junction has none)
+        const bool geo = id < static_cast<int>(layout.nodeGeo.size()) &&
+                         layout.nodeGeo[static_cast<std::size_t>(id)].known;
+        w.key("lat");
+        if (geo) w.value(layout.nodeGeo[static_cast<std::size_t>(id)].lat); else w.null();
+        w.key("lon");
+        if (geo) w.value(layout.nodeGeo[static_cast<std::size_t>(id)].lon); else w.null();
+        w.endObject();
     }
     w.endArray();
 
