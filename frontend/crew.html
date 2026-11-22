@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OPERA · Ambulance crew</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="opera.css">
+<link rel="stylesheet" href="crew.css">
+</head>
+<body>
+<!-- The ambulance crew's screen (a phone in the ambulance).
+     It sends the phone's real GPS position to the server every few seconds
+     (POST /api/tracking/gps). The server (LiveTracker) places it on the route,
+     and every dashboard and tracking page shows it. See crew.js. -->
+<div id="op" class="crew">
+  <header class="crew-top">
+    <b>OPERA</b><span>Ambulance crew</span>
+    <span class="chip" id="cConn">Connecting…</span>
+  </header>
+
+  <section class="card" id="cLogin">
+    <h3>Sign in</h3>
+    <label>Name<input type="text" id="cName" autocomplete="username"></label>
+    <label>Password<input type="password" id="cPass" autocomplete="current-password"></label>
+    <button class="b pr" id="cGo">Sign in</button>
+    <div class="msg" id="cLoginMsg"></div>
+  </section>
+
+  <section id="cApp" hidden>
+    <section class="card">
+      <label>Our call<select id="cTrip"></select></label>
+      <div id="cInfo" class="crew-info"></div>
+    </section>
+
+    <section class="card crew-gps">
+      <div class="crew-gps-head">
+        <h3>Live GPS</h3>
+        <span class="chip" id="gState">Off</span>
+      </div>
+      <button class="b crew-big" id="gToggle">Start sharing GPS</button>
+      <div class="crew-gps-info" id="gInfo" aria-live="polite"></div>
+      <div class="crew-warn" id="gWarn" hidden></div>
+    </section>
+
+    <section class="card" id="cNow"></section>
+    <div class="msg" id="cMsg" role="status" aria-live="polite"></div>
+
+    <details class="card crew-cal">
+      <summary>Set up junction coordinates</summary>
+      <p class="sub">GPS tracking needs the real position of each junction. Stand at a junction, pick it, and press the
+        button. Paste the lines into <span class="mono">data/city_map.txt</span> and restart the server.</p>
+      <label>Junction<select id="calNode"></select></label>
+      <button class="b" id="calGo">Use my current position for this junction</button>
+      <textarea id="calOut" rows="5" readonly aria-label="GEO lines for city_map.txt"></textarea>
+      <div class="sub" id="calMsg" role="status"></div>
+    </details>
+  </section>
+</div>
+<script src="crew.js"></script>
+</body>
+</html>
