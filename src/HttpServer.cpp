@@ -40,7 +40,6 @@ void closeSocket(SocketHandle s) { close(s); }
 #endif
 
 constexpr std::size_t kMaxHeaderBytes = 16 * 1024;
-constexpr std::size_t kMaxBodyBytes = 64 * 1024;
 constexpr int kTimeoutSeconds = 5;
 
 void setTimeouts(SocketHandle s) {
@@ -83,6 +82,7 @@ const char* reasonPhrase(int status) {
         case 413: return "Payload Too Large";
         case 431: return "Request Header Fields Too Large";
         case 500: return "Internal Server Error";
+        case 501: return "Not Implemented";
         default:  return "Unknown";
     }
 }
@@ -151,41 +151,8 @@ bool readRequest(SocketHandle s, HttpRequest& req, HttpResponse& error) {
         data.append(buf, static_cast<std::size_t>(n));
     }
 
-    std::istringstream head(data.substr(0, headerEnd));
-    std::string requestLine;
-    std::getline(head, requestLine);
-    std::istringstream rl(requestLine);
-    std::string target;
-    std::string version;
-    if (!(rl >> req.method >> target >> version) || target.empty() || target[0] != '/') {
-        error = textResponse(400, "Malformed request line.");
-        return false;
-    }
-    req.path = target.substr(0, target.find('?'));
-
     std::size_t contentLength = 0;
-    std::string line;
-    while (std::getline(head, line)) {
-        const auto colon = line.find(':');
-        if (colon == std::string::npos) continue;
-        const std::string name = toLower(line.substr(0, colon));
-        std::string value = line.substr(colon + 1);
-        while (!value.empty() && (value.front() == ' ' || value.front() == '\t')) value.erase(0, 1);
-        while (!value.empty() && (value.back() == '\r' || value.back() == ' ')) value.pop_back();
-        if (name == "authorization") req.authorization = value;
-        if (name == "origin") req.origin = value;
-        if (name == "content-length") {
-            char* end = nullptr;
-            const unsigned long v = std::strtoul(line.c_str() + colon + 1, &end, 10);
-            if (end == line.c_str() + colon + 1) {
-                error = textResponse(400, "Bad Content-Length.");
-                return false;
-            }
-            contentLength = static_cast<std::size_t>(v);
-        }
-    }
-    if (contentLength > kMaxBodyBytes) {
-        error = textResponse(413, "Request body is too large.");
+    if (!parseRequestHead(data.substr(0, headerEnd), req, contentLength, error)) {
         return false;
     }
 
@@ -306,7 +273,13 @@ void HttpServer::run() {
         if (n <= 0) {
             continue;   // no browser waiting: back to the tick
         }
-        const SocketHandle client = accept(listener, nullptr, nullptr);
+        sockaddr_in peer{};
+#ifdef _WIN32
+        int peerLen = sizeof peer;
+#else
+        socklen_t peerLen = sizeof peer;
+#endif
+        const SocketHandle client = accept(listener, reinterpret_cast<sockaddr*>(&peer), &peerLen);
         if (client == kInvalidSocket) {
             continue;
         }
@@ -314,6 +287,9 @@ void HttpServer::run() {
 
         HttpRequest req;
         HttpResponse res;
+        // The real address of the connection (never a header such as
+        // X-Forwarded-For, which a client could fake): used to limit sign-in attempts.
+        req.remote = inet_ntoa(peer.sin_addr);
         if (readRequest(client, req, res)) {
             const bool isApi = req.path.compare(0, 5, "/api/") == 0;
             const std::string cors = isApi && isLocalOrigin(req.origin) ? req.origin : "";
