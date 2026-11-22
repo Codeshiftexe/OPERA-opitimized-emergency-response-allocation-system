@@ -736,30 +736,23 @@ async function logout() {
   endSession('');
 }
 
-/* ---- captcha (codes from captcha.txt; a check in the page, not a security measure) ---- */
-const CAP_FALLBACK = ["L8MV2N", "ZFTY5G", "RU7G43", "XXSAYU", "36C8Y9", "YRW293", "QGM42R", "3RNSG6", "J6FMU5", "E5RVLX", "TYF4X7", "XKWZQ4", "9A5NTL", "SFXQQG", "UHU77M", "VKFX93", "U8GX6F", "D65LGN", "WAWTFY", "NZYPM7"];
-let CAPS = CAP_FALLBACK.slice(), captcha = '';
-const rnd = (a, b) => a + Math.random() * (b - a);
-function rndInt(n) { try { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] % n; } catch (e) { return Math.floor(Math.random() * n); } }
-function parseCaptchas(t) {
-  const seen = new Set();
-  t.split('\n').map(l => l.trim()).filter(l => l && l[0] !== '#').forEach(l => { l = l.toUpperCase(); if (/^[A-Z0-9]{4,10}$/.test(l)) seen.add(l); });
-  return Array.from(seen);
-}
-async function loadCaptchas() {
+/* ---- captcha: made and checked by the server (GET /api/captcha) ----
+   The server draws a random code as an image and remembers the answer; the
+   sign-in request carries the image's id and what the user typed, and each
+   image works only once. (It used to be a list in captcha.txt checked here in
+   the page, which a script could simply skip.) */
+let captchaId = '';
+async function newCaptcha() {
+  captchaId = '';
+  const box = $('capBox');
+  if (!API && !(await findServer())) { box.textContent = 'Waiting for the server…'; return; }
   try {
-    const r = await fetch('captcha.txt?t=' + Date.now(), {cache: 'no-store'});
-    if (!r.ok) throw new Error(r.status);
-    const c = parseCaptchas(await r.text());
-    if (c.length >= 2) CAPS = c;
-  } catch (e) { /* keep the built-in list */ }
-  newCaptcha();
-}
-function newCaptcha() {
-  let c;
-  do { c = CAPS[rndInt(CAPS.length)]; } while (c === captcha && CAPS.length > 1);
-  captcha = c;
-  $('capBox').innerHTML = c.split('').map(ch => '<span style="transform:rotate(' + Math.round(rnd(-14, 14)) + 'deg) translateY(' + Math.round(rnd(-4, 4)) + 'px)">' + ch + '</span>').join('');
+    const r = await request('GET', '/api/captcha');
+    if (!r.res.ok || !r.data || !r.data.image) throw new Error('no captcha');
+    captchaId = r.data.captchaId;
+    box.innerHTML = '<img src="' + r.data.image + '" alt="Captcha: type the characters shown in this image" ' +
+                    'width="180" height="60" style="display:block;max-height:100%;width:auto;image-rendering:pixelated">';
+  } catch (e) { box.textContent = 'Could not load the image. Press refresh.'; }
 }
 
 async function signIn() {
@@ -767,11 +760,12 @@ async function signIn() {
   err.textContent = '';
   const name = $('l_name').value.trim(), pw = $('l_pass').value, cap = $('l_cap').value.trim().toUpperCase();
   if (!name || !pw || !cap) { err.textContent = 'Enter your name, your password and the characters shown in the image.'; return; }
-  if (cap !== captcha) { err.textContent = 'The characters did not match. A new image is shown.'; newCaptcha(); $('l_cap').value = ''; return; }
   if (!API && !(await findServer())) { err.textContent = 'The OPERA server is not running. Start opera_server, then try again.'; return; }
+  if (!captchaId) { err.textContent = 'The image is not loaded yet. Press refresh and try again.'; newCaptcha(); return; }
   $('lgo').disabled = true;
   try {
-    const r = await request('POST', '/api/login', {name, password: pw});
+    const r = await request('POST', '/api/login', {name, password: pw, captchaId, captcha: cap});
+    captchaId = '';                                  // used up on the server, right or wrong
     if (r.res.ok && r.data && r.data.token) {
       TOKEN = r.data.token;
       me = r.data.user;
@@ -802,7 +796,8 @@ async function sha256hex(s) {
 }
 async function makeLine() {
   const n = $('mk_name').value.trim(), r = $('mk_role').value, p = $('mk_pass').value, m = $('mk_msg');
-  if (!n || /[|\n]/.test(n)) { m.textContent = 'Enter a name without the | character.'; return; }
+  // Same rule as the server: plain letters, digits, '.', '_' and '-' (no look-alike Unicode).
+  if (!/^[A-Za-z0-9._-]{1,32}$/.test(n)) { m.textContent = 'Use only letters A-Z, digits, . _ or - in the name (at most 32).'; return; }
   if (p.length < 8) { m.textContent = 'Use a password of at least 8 characters.'; return; }
   try {
     const salt = Array.from(crypto.getRandomValues(new Uint8Array(8))).map(b => b.toString(16).padStart(2, '0')).join('');
@@ -843,7 +838,7 @@ let serverTimer = null;
 function waitForServer() {
   if (serverTimer) return;
   serverTimer = setInterval(async () => {
-    if (await findServer()) { clearInterval(serverTimer); serverTimer = null; }
+    if (await findServer()) { clearInterval(serverTimer); serverTimer = null; newCaptcha(); }
   }, 3000);
 }
 
@@ -852,8 +847,8 @@ async function start() {
   $('capNew').onclick = () => { newCaptcha(); $('l_cap').value = ''; $('l_cap').focus(); };
   $('mkline').onclick = makeLine;
   $('logout').onclick = logout;
-  loadCaptchas();
-  if (!(await findServer())) { waitForServer(); return; }
+  if (!(await findServer())) { $('capBox').textContent = 'Waiting for the server…'; waitForServer(); return; }
+  newCaptcha();
   // Still signed in from before a page reload?
   const saved = ssGet(TOKEN_KEY);
   if (!saved) return;

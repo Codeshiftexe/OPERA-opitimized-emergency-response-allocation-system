@@ -57,7 +57,8 @@ std::string bearerToken(const std::string& header) {
 }  // namespace
 
 ApiResponse Api::handle(const std::string& method, const std::string& path,
-                        const std::string& body, const std::string& authorization) {
+                        const std::string& body, const std::string& authorization,
+                        const std::string& remote) {
     using Handler = Outcome (Api::*)(const JsonObject&);
     static const std::unordered_map<std::string, Handler> postRoutes = {
         {"/api/emergencies", &Api::registerEmergency},
@@ -79,6 +80,14 @@ ApiResponse Api::handle(const std::string& method, const std::string& path,
             return ApiResponse{200, R"({"ok":true,"opera":true,"message":"OPERA server"})"};
         }
 
+        if (path == "/api/captcha") {
+            if (method != "GET") return reply({405, false, "Use GET for /api/captcha.", false, {}}, nullptr);
+            const CaptchaChallenge c = captcha_.issue();
+            JsonWriter w;
+            w.beginObject().key("ok").value(true).key("captchaId").value(c.id).key("image").value(c.image).endObject();
+            return ApiResponse{200, w.str()};
+        }
+
         JsonObject in;
         std::string error;
         if (method == "POST" && !body.empty() && !JsonObject::parse(body, in, error)) {
@@ -87,7 +96,7 @@ ApiResponse Api::handle(const std::string& method, const std::string& path,
 
         if (path == "/api/login") {
             if (method != "POST") return reply({405, false, "Use POST for /api/login.", false, {}}, nullptr);
-            return login(in);
+            return login(in, remote);
         }
 
         // ---- everything else needs a signed-in user ------------------------
@@ -143,16 +152,28 @@ ApiResponse Api::handle(const std::string& method, const std::string& path,
     }
 }
 
-ApiResponse Api::login(const JsonObject& in) {
+ApiResponse Api::login(const JsonObject& in, const std::string& remote) {
     std::string name;
     std::string password;
     if (!in.getString("name", name) || !in.getString("password", password) || name.empty()) {
         return reply({400, false, "Enter your name and password.", false, {}}, nullptr);
     }
+    // The captcha is checked before the password, so every password guess
+    // needs a fresh, correctly solved captcha (each one works only once).
+    if (captchaRequired_) {
+        std::string captchaId;
+        std::string answer;
+        in.getString("captchaId", captchaId);
+        in.getString("captcha", answer);
+        if (!captcha_.check(captchaId, answer)) {
+            return reply({400, false, "The characters did not match, or the image expired. A new image is shown.",
+                          false, {}}, nullptr);
+        }
+    }
     std::string token;
     User user;
     int secondsLeft = 0;
-    switch (auth_.login(name, password, token, user, secondsLeft)) {
+    switch (auth_.login(name, password, token, user, secondsLeft, remote)) {
         case Auth::LoginResult::LockedOut:
             return reply({429, false, "Too many failed attempts. Try again in " +
                                           std::to_string(secondsLeft) + " s.", false, {}}, nullptr);

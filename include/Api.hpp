@@ -6,7 +6,10 @@
 //
 // Open routes (no sign-in needed):
 //   GET  /api/ping                   {"ok":true,"opera":true}  - lets the page find the server
-//   POST /api/login                  {"name":"admin","password":"..."}  -> token + user + state
+//   GET  /api/captcha                -> {"ok":true,"captchaId":"...","image":"data:image/bmp;base64,..."}
+//   POST /api/login                  {"name":"admin","password":"...","captchaId":"...","captcha":"AB3XY7"}
+//                                    -> token + user + state. The captcha is checked first and
+//                                    is single use (see Captcha.hpp).
 //
 // Routes that need "Authorization: Bearer <token>":
 //   GET  /api/session                who is signed in + state (used after a page reload)
@@ -44,6 +47,7 @@
 
 #include "Auth.hpp"
 #include "AutoDispatcher.hpp"
+#include "Captcha.hpp"
 #include "LiveTracker.hpp"
 #include "CityLoader.hpp"
 #include "DispatchCoordinator.hpp"
@@ -62,8 +66,15 @@ public:
     Api(DispatchCoordinator& coordinator, MapLayout layout, Auth& auth);
 
     // `authorization` is the raw Authorization header ("Bearer <token>"), or "".
+    // `remote` is the caller's IP address from the connection ("" in tests).
     ApiResponse handle(const std::string& method, const std::string& path,
-                       const std::string& body, const std::string& authorization = "");
+                       const std::string& body, const std::string& authorization = "",
+                       const std::string& remote = "");
+
+    // The server always requires the captcha. Tests of other features may
+    // switch it off; test_security checks that it is enforced.
+    void setCaptchaRequired(bool on) { captchaRequired_ = on; }
+    Captcha& captcha() { return captcha_; }
 
     const std::vector<LogEntry>& log() const { return log_; }
     bool autoDispatchOn() const { return auto_.enabled(); }
@@ -90,7 +101,7 @@ private:
         BatchResult batch;
     };
 
-    ApiResponse login(const JsonObject& in);
+    ApiResponse login(const JsonObject& in, const std::string& remote);
 
     Outcome registerEmergency(const JsonObject& in);
     Outcome dispatchNext();
@@ -123,6 +134,8 @@ private:
     std::vector<LogEntry> log_;  // oldest first, capped
     std::string actor_;          // name of the user making the current request
     AutoDispatcher auto_;        // optional automatic dispatching (off at start)
+    Captcha captcha_;            // server-side captcha for /api/login
+    bool captchaRequired_ = true;
     LiveTracker live_;           // real-time position of every ambulance on a call
     std::chrono::steady_clock::time_point started_;
 };
