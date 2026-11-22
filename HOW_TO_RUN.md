@@ -7,7 +7,7 @@ the C++ server as JSON over HTTP, and the server replies with the new state.
 OPERA/
 ├── include/  src/  tests/   C++ engine, loader, sign-in, JSON API, HTTP server, tests
 ├── data/                    city map, hospitals, ambulances, accounts (read by the server)
-└── frontend/                opera.html, opera.css, opera.js, track.html, track.js, captcha.txt
+└── frontend/                opera.html, opera.css, opera.js, track.html, track.js, ...
 ```
 
 ## 1. Build the server (once, and again after changing C++ code)
@@ -26,11 +26,13 @@ From the repository folder (the one that contains `src/`):
 g++ -std=c++17 -Iinclude src/*.cpp -o opera_server
 ```
 
-On Windows (MinGW) add Winsock and the .exe name:
+On Windows (MinGW) add Winsock, the system random generator and the .exe name:
 
 ```
-g++ -std=c++17 -Iinclude src/*.cpp -lws2_32 -o opera_server.exe
+g++ -std=c++17 -Iinclude src/*.cpp -lws2_32 -ladvapi32 -o opera_server.exe
 ```
+
+(`-ladvapi32` provides `CryptGenRandom`, used for session tokens and captcha codes.)
 
 If the compiler says `unrecognized command line option '-std=c++17'`, your g++
 is older: use `-std=c++14` instead (the project builds as C++14 too).
@@ -78,14 +80,13 @@ coordinates. Both are explained step by step in [`LIVE_TRACKING.md`](LIVE_TRACKI
 From the repository folder, for any test file (example: the dispatch tests):
 
 ```
-g++ -std=c++17 -Iinclude tests/test_dispatch.cpp src/Graph.cpp src/RoutingEngine.cpp src/Ambulance.cpp src/Hospital.cpp src/Emergency.cpp src/Registry.cpp src/TriageQueue.cpp src/BatchPlanner.cpp src/DispatchCoordinator.cpp src/CityLoader.cpp src/Json.cpp src/StateJson.cpp src/Api.cpp src/Sha256.cpp src/Auth.cpp -o test_dispatch
+g++ -std=c++17 -Iinclude tests/test_dispatch.cpp src/Graph.cpp src/RoutingEngine.cpp src/Ambulance.cpp src/Hospital.cpp src/Emergency.cpp src/Registry.cpp src/TriageQueue.cpp src/BatchPlanner.cpp src/DispatchCoordinator.cpp src/AutoDispatcher.cpp src/LiveTracker.cpp src/CityLoader.cpp src/Json.cpp src/StateJson.cpp src/Api.cpp src/Sha256.cpp src/SecureRandom.cpp src/Captcha.cpp src/HttpParse.cpp src/Auth.cpp -o test_dispatch
 ./test_dispatch
 ```
 
-Use the same command with `test_batch`, `test_api`, `test_auth`, `test_json`, `test_loader`,
-`test_stack_edge` or any original test. The tracking and auto-dispatch tests also need
-`src/LiveTracker.cpp` and `src/AutoDispatcher.cpp`; their build commands are at the top of
-each test file. (`src/main.cpp` and `src/HttpServer.cpp`
+On Windows add `-ladvapi32` at the end. Use the same command with any test file, for
+example `test_batch`, `test_api`, `test_auth`, `test_security`, `test_live_tracker` or
+`test_stack_edge`. (`src/main.cpp` and `src/HttpServer.cpp`
 are left out of test builds because they hold the program's `main()` and the sockets.)
 
 ## Build with CMake (optional)

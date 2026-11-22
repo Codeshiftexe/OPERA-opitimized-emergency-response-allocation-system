@@ -118,7 +118,7 @@ int main(int argc, char** argv) {
     opera::HttpServer server(
         static_cast<unsigned short>(opt.port), opt.webDir,
         [&api](const opera::HttpRequest& req) {
-            const opera::ApiResponse r = api.handle(req.method, req.path, req.body, req.authorization);
+            const opera::ApiResponse r = api.handle(req.method, req.path, req.body, req.authorization, req.remote);
             return opera::HttpResponse{r.status, "application/json; charset=utf-8", r.body};
         },
         opt.network);

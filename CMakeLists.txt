@@ -36,6 +36,9 @@ target_compile_options(opera_core PRIVATE ${OPERA_WARNINGS})
 # JSON + serialisation + sign-in + API routes (no sockets, so it is unit-testable).
 add_library(opera_api STATIC
     src/Sha256.cpp
+    src/SecureRandom.cpp
+    src/Captcha.cpp
+    src/HttpParse.cpp
     src/Auth.cpp
     src/Json.cpp
     src/StateJson.cpp
@@ -43,6 +46,9 @@ add_library(opera_api STATIC
 )
 target_link_libraries(opera_api PUBLIC opera_core)
 target_compile_options(opera_api PRIVATE ${OPERA_WARNINGS})
+if(WIN32)
+    target_link_libraries(opera_api PUBLIC advapi32)   # CryptGenRandom (SecureRandom.cpp)
+endif()
 
 # The program: socket server + main().
 add_executable(opera_server src/main.cpp src/HttpServer.cpp)
@@ -65,7 +71,7 @@ foreach(t test_heap test_stack test_stack_edge test_graph test_routing test_reso
     target_link_libraries(${t} PRIVATE opera_core)
     add_test(NAME ${t} COMMAND ${t})
 endforeach()
-foreach(t test_json test_api test_auth test_api_autodispatch test_api_tracking)
+foreach(t test_json test_api test_auth test_api_autodispatch test_api_tracking test_security)
     add_executable(${t} tests/${t}.cpp)
     target_link_libraries(${t} PRIVATE opera_api)
     add_test(NAME ${t} COMMAND ${t})

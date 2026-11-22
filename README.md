@@ -56,7 +56,7 @@ The API routes are listed in [`include/Api.hpp`](include/Api.hpp).
 ```
 include/  src/  tests/   C++ engine, loader, sign-in, JSON API, HTTP server, tests
 data/                    city_map.txt, hospitals.txt, ambulances.txt, passwords.txt
-frontend/                opera.html, opera.css, opera.js, track.html, track.js, captcha.txt
+frontend/                opera.html, opera.css, opera.js, track.html, track.js, ...
 ```
 
 ## Run it
@@ -64,7 +64,7 @@ frontend/                opera.html, opera.css, opera.js, track.html, track.js, 
 See [`HOW_TO_RUN.md`](HOW_TO_RUN.md). In short, from this folder:
 
 ```
-g++ -std=c++17 -Iinclude src/*.cpp -lws2_32 -o opera_server.exe     (Windows; drop -lws2_32 elsewhere)
+g++ -std=c++17 -Iinclude src/*.cpp -lws2_32 -ladvapi32 -o opera_server.exe     (Windows; drop both -l options elsewhere)
 .\opera_server.exe
 ```
 
@@ -72,9 +72,17 @@ Then open `http://localhost:8080`.
 
 ## Testing
 
-19 test programs, 1092 checks, covering the data structures, routing, domain
+20 test programs, 1179 checks, covering the data structures, routing, domain
 classes, dispatch, batch dispatch, auto-dispatch, live GPS tracking, loader, JSON,
-API and sign-in. All pass with C++14 and C++17.
+API, sign-in and security. All pass with C++14 and C++17.
+
+## Security
+
+Sign-in uses salted SHA-256 passwords, a captcha made and checked by the server,
+unpredictable session tokens from the operating system's random generator,
+sessions that expire, and limits on failed sign-ins per name and per network
+address. `tests/test_security.cpp` attacks each protection and checks it holds.
+See [`SECURITY.md`](SECURITY.md) for the details and the known limits.
 
 ## Planned
 

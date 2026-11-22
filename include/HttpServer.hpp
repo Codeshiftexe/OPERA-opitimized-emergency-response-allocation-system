@@ -17,6 +17,7 @@
 // The cost: one slow client delays the others, which is why every socket
 // gets a short receive timeout.
 
+#include <cstddef>
 #include <functional>
 #include <string>
 
@@ -28,6 +29,7 @@ struct HttpRequest {
     std::string body;
     std::string authorization;  // value of the Authorization header, or ""
     std::string origin;         // value of the Origin header, or ""
+    std::string remote;         // the client's IP address, from the connection itself
 };
 
 struct HttpResponse {
@@ -38,6 +40,16 @@ struct HttpResponse {
 
 // True for http://localhost[:port] and http://127.0.0.1[:port].
 bool isLocalOrigin(const std::string& origin);
+
+// Largest request body the server accepts.
+constexpr std::size_t kMaxRequestBodyBytes = 64 * 1024;
+
+// Parses the request line and headers (everything before the blank line) into
+// `req` and the declared body length. False with `error` set for a malformed
+// request, a body over kMaxRequestBodyBytes, a Transfer-Encoding header, or two
+// different Content-Length values (request smuggling defence). In HttpParse.cpp.
+bool parseRequestHead(const std::string& headBlock, HttpRequest& req, std::size_t& contentLength,
+                      HttpResponse& error);
 
 class HttpServer {
 public:
