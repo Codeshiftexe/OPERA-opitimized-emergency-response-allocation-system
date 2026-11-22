@@ -41,6 +41,7 @@ struct World {
     Api api;
     std::string admin, oper;
     World() : coord(makeRegistry()), auth(makeAuth()), api(coord, makeLayout(), auth) {
+        api.setCaptchaRequired(false);   // captcha enforcement is tested in test_security
         admin = tokenIn(api.handle("POST", "/api/login", R"({"name":"boss","password":"pw-admin"})").body);
         oper = tokenIn(api.handle("POST", "/api/login", R"({"name":"op","password":"pw-oper"})").body);
     }

@@ -40,6 +40,7 @@ struct World {
     Api api;
     std::string token;  // signed in as boss (admin) unless a test changes it
     World() : coord(makeRegistry()), auth(makeAuth()), api(coord, makeLayout(), auth) {
+        api.setCaptchaRequired(false);   // captcha enforcement is tested in test_security
         token = tokenIn(api.handle("POST", "/api/login", R"({"name":"boss","password":"pw-admin"})").body);
     }
 
