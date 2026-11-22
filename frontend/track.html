@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>OPERA · Live tracking</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 <link rel="stylesheet" href="opera.css">
 </head>
@@ -58,7 +58,7 @@
           <span><i style="width:10px;height:10px;border-radius:2px;background:#1B7143"></i>Hospital</span>
           <span><i style="width:14px;height:9px;border-radius:2px;background:#0B5CAD"></i>Ambulance</span>
         </div>
-        <div class="sub" style="padding:0 4px 4px">The route and every road time come from the C++ engine (Dijkstra). This page moves the ambulance along exactly that route; the engine records the delivery when you confirm it.</div>
+        <div class="sub" style="padding:0 4px 4px">The route and every road time come from the C++ engine (Dijkstra). The ambulance is drawn where the server last placed it from the crew phone’s GPS (crew.html); the badge above shows how old that fix is. The engine records the delivery when it is confirmed.</div>
       </div>
       <div id="side" style="display:flex;flex-direction:column;gap:10px;min-width:0"></div>
     </div>
@@ -66,5 +66,18 @@
 </div>
 
 <script src="track.js"></script>
+<!-- 3D map (Three.js). Added with the 3D files: opera3d.css, city3d.js, track3d.js.
+     Three.js is loaded from node_modules (run "npm install" in frontend/ once). -->
+<link rel="stylesheet" href="opera3d.css">
+<script type="importmap">
+{ "imports": { "three": "./node_modules/three/build/three.module.js",
+               "three/addons/": "./node_modules/three/examples/jsm/" } }
+</script>
+<script type="module" src="track3d.js"></script>
+<!-- Real-time tracking: live positions from the server (engine side: include/LiveTracker.hpp). -->
+<link rel="stylesheet" href="live.css">
+<script src="live.js"></script>
+<!-- Same colour theme as the dashboard. -->
+<link rel="stylesheet" href="dashboard.css">
 </body>
 </html>

@@ -285,6 +285,14 @@ bool JsonObject::getInt(const std::string& key, int& out) const {
     return true;
 }
 
+bool JsonObject::getDouble(const std::string& key, double& out) const {
+    const auto it = fields_.find(key);
+    if (it == fields_.end() || it->second.kind != Value::Kind::Number) return false;
+    if (!std::isfinite(it->second.number)) return false;
+    out = it->second.number;
+    return true;
+}
+
 bool JsonObject::getString(const std::string& key, std::string& out) const {
     const auto it = fields_.find(key);
     if (it == fields_.end() || it->second.kind != Value::Kind::String) return false;
