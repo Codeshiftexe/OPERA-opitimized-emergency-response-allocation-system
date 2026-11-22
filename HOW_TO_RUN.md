@@ -12,6 +12,14 @@ OPERA/
 
 ## 1. Build the server (once, and again after changing C++ code)
 
+**Windows, easiest:** run `.\build.bat` in the repository folder (or double-click it).
+It builds from the right folder and falls back to C++14 on an older g++.
+
+> **Always rebuild after pulling changes.** An old `opera_server.exe` keeps running the
+> old code: for example, without a rebuild there is no live GPS tracking at all and the
+> pages fall back to a timer animation. The start-up message mentions `crew.html` when
+> the build is current.
+
 From the repository folder (the one that contains `src/`):
 
 ```
@@ -55,8 +63,15 @@ the server. Demo accounts (change them before real use):
 
 Opening `opera.html` by double-clicking it does **not** work; use one of the two ways above.
 
-Options: `--port 8080`, `--data <folder>`, `--web <folder>`. (With Live Server,
-keep the default port 8080: that is where the page looks for the server.)
+Options: `--port 8080`, `--data <folder>`, `--web <folder>`,
+`--host 0.0.0.0` (let phones on the same network connect; default `127.0.0.1`).
+(With Live Server, keep the default port 8080: that is where the page looks for the server.)
+
+## Live GPS tracking (ambulance crew phone)
+
+Open `crew.html` on the crew's phone and press **Start sharing GPS**. Phones only share
+GPS with `https://` or `http://localhost` pages, and the map's junctions need real
+coordinates. Both are explained step by step in [`LIVE_TRACKING.md`](LIVE_TRACKING.md).
 
 ## Run the tests (plain g++)
 
@@ -68,7 +83,9 @@ g++ -std=c++17 -Iinclude tests/test_dispatch.cpp src/Graph.cpp src/RoutingEngine
 ```
 
 Use the same command with `test_batch`, `test_api`, `test_auth`, `test_json`, `test_loader`,
-`test_stack_edge` or any original test. (`src/main.cpp` and `src/HttpServer.cpp`
+`test_stack_edge` or any original test. The tracking and auto-dispatch tests also need
+`src/LiveTracker.cpp` and `src/AutoDispatcher.cpp`; their build commands are at the top of
+each test file. (`src/main.cpp` and `src/HttpServer.cpp`
 are left out of test builds because they hold the program's `main()` and the sockets.)
 
 ## Build with CMake (optional)

@@ -12,11 +12,15 @@ A C++ engine makes every decision; a web interface shows them on a live city map
 - **Dispatch** the top emergency: Dijkstra's algorithm finds the nearest available
   ambulance and the nearest hospital with a free bed; a bed is reserved and the
   ambulance is marked busy.
-- **Dispatch a batch**: when several emergencies wait, the most urgent ones are
-  served together and backtracking chooses which ambulance goes where, so the
-  total priority-weighted travel time is lowest (one at a time can be far worse).
-- **Track** the dispatch on a live page where the ambulance follows the route the
-  engine computed.
+- **Dispatch a batch**: when several emergencies are waiting, the most urgent ones
+  are served together and backtracking chooses which ambulance goes where, so the
+  total priority-weighted travel time is as low as possible. One at a time can be
+  far worse: the most urgent case takes its nearest ambulance even when that leaves
+  the next case with a distant one (see [`BATCH_DISPATCH.md`](BATCH_DISPATCH.md)).
+- **Track** the ambulance live: the crew phone sends its GPS position, the server
+  places it on the engine's route, and every screen shows the same position and
+  ETA (see [`LIVE_TRACKING.md`](LIVE_TRACKING.md)). A clearly labelled simulated
+  mode exists for demos without a phone.
 - **Undo** a dispatch within 10 seconds, **deliver** the patient, **discharge** a
   patient to free a bed, and take ambulances **offline/online** (admin only).
 - **Sign in** with role-based accounts (admin, operator), checked by the server.
@@ -28,11 +32,12 @@ A C++ engine makes every decision; a web interface shows them on a live city map
 | Templated binary min-heap | Triage queue, Dijkstra's frontier | `include/MinHeap.hpp` |
 | Weighted graph (adjacency list) | City road network | `include/Graph.hpp`, `src/Graph.cpp` |
 | Dijkstra with lazy deletion + path reconstruction | Fastest routes | `src/RoutingEngine.cpp` |
-| Backtracking with pruning | Best ambulance-to-emergency assignment for a batch | `src/BatchPlanner.cpp` |
+| Backtracking with pruning | Best ambulance-to-emergency assignment for a whole batch | `include/BatchPlanner.hpp`, `src/BatchPlanner.cpp` |
 | Linked-list stack | Undo history of dispatches | `include/Stack.hpp` |
 | Class hierarchy with polymorphism | Cardiac / Trauma / Transfer emergencies | `include/Emergency.hpp` |
 | State machines | Ambulance (available / busy / offline), hospital beds | `src/Ambulance.cpp`, `src/Hospital.cpp` |
 | SHA-256 | Salted password hashes for sign-in | `src/Sha256.cpp` |
+| Point-to-segment projection (map matching) | Placing GPS fixes on the route | `src/LiveTracker.cpp`, `include/Geo.hpp` |
 
 ## How it fits together
 
@@ -67,9 +72,9 @@ Then open `http://localhost:8080`.
 
 ## Testing
 
-15 test programs, 878 checks, covering the data structures, routing, domain
-classes, dispatch, batch dispatch, loader, JSON, API and sign-in. All pass with
-C++14 and C++17.
+19 test programs, 1092 checks, covering the data structures, routing, domain
+classes, dispatch, batch dispatch, auto-dispatch, live GPS tracking, loader, JSON,
+API and sign-in. All pass with C++14 and C++17.
 
 ## Planned
 

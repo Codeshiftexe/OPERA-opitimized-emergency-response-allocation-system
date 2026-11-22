@@ -26,6 +26,8 @@ add_library(opera_core STATIC
     src/TriageQueue.cpp
     src/BatchPlanner.cpp
     src/DispatchCoordinator.cpp
+    src/AutoDispatcher.cpp
+    src/LiveTracker.cpp
     src/CityLoader.cpp
 )
 target_include_directories(opera_core PUBLIC ${PROJECT_SOURCE_DIR}/include)
@@ -57,12 +59,13 @@ target_compile_definitions(opera_server PRIVATE
 # Tests: one program per file in tests/.
 enable_testing()
 foreach(t test_heap test_stack test_stack_edge test_graph test_routing test_resources
-          test_emergency test_registry test_triage test_dispatch test_batch test_loader)
+          test_emergency test_registry test_triage test_dispatch test_batch test_autodispatch
+          test_live_tracker test_loader)
     add_executable(${t} tests/${t}.cpp)
     target_link_libraries(${t} PRIVATE opera_core)
     add_test(NAME ${t} COMMAND ${t})
 endforeach()
-foreach(t test_json test_api test_auth)
+foreach(t test_json test_api test_auth test_api_autodispatch test_api_tracking)
     add_executable(${t} tests/${t}.cpp)
     target_link_libraries(${t} PRIVATE opera_api)
     add_test(NAME ${t} COMMAND ${t})
