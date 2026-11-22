@@ -56,6 +56,7 @@ public:
     bool getInt(const std::string& key, int& out) const;
     bool getString(const std::string& key, std::string& out) const;
     bool getBool(const std::string& key, bool& out) const;
+    bool getDouble(const std::string& key, double& out) const;  // any finite number
 
 private:
     struct Value {

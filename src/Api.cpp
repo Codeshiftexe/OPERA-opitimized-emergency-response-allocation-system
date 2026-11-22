@@ -18,7 +18,15 @@ std::string ambulanceLabel(int id) { return "Ambulance " + std::to_string(id); }
 }  // namespace
 
 Api::Api(DispatchCoordinator& coordinator, MapLayout layout, Auth& auth)
-    : coord_(coordinator), layout_(std::move(layout)), auth_(auth) {}
+    : coord_(coordinator), layout_(std::move(layout)), auth_(auth), auto_(coordinator),
+      started_(std::chrono::steady_clock::now()) {
+    live_.setNodeGeo(layout_.nodeGeo);   // real coordinates for GPS map matching
+    live_.setMode(TrackingMode::RealTime, 0.0);   // moves at real road speed from dispatch; GPS corrects it
+}
+
+double Api::now() const {
+    return std::chrono::duration<double>(std::chrono::steady_clock::now() - started_).count();
+}
 
 std::string Api::nodeName(int id) const {
     const Graph& g = coord_.registry().roads();
@@ -57,6 +65,11 @@ ApiResponse Api::handle(const std::string& method, const std::string& path,
         {"/api/hospitals/discharge", &Api::discharge},
         {"/api/ambulances/status", &Api::setAmbulanceStatus},
         {"/api/clock/advance", &Api::advanceClock},
+        {"/api/autodispatch", &Api::setAutoDispatch},
+        {"/api/tracking/report", &Api::trackingReport},
+        {"/api/tracking/gps", &Api::trackingGps},
+        {"/api/tracking/mode", &Api::trackingMode},
+        {"/api/tracking/speed", &Api::trackingSpeed},
     };
 
     try {
@@ -97,10 +110,10 @@ ApiResponse Api::handle(const std::string& method, const std::string& path,
         }
 
         const bool isDispatch = path == "/api/dispatch";
-        const bool isUndo = path == "/api/undo";
         const bool isBatch = path == "/api/dispatch/batch";
+        const bool isUndo = path == "/api/undo";
         const auto route = postRoutes.find(path);
-        if (!isDispatch && !isUndo && !isBatch && route == postRoutes.end()) {
+        if (!isDispatch && !isBatch && !isUndo && route == postRoutes.end()) {
             return reply({404, false, "Unknown route " + path + ".", false, {}}, user);
         }
         if (method != "POST") {
@@ -111,10 +124,18 @@ ApiResponse Api::handle(const std::string& method, const std::string& path,
                           false, {}}, user);
         }
 
+        if (path == "/api/tracking/mode" && user->role != "admin") {
+            return reply({403, false, "Only an admin can switch between real GPS tracking and the simulation.",
+                          false, {}}, user);
+        }
+
         if (isDispatch) return reply(dispatchNext(), user);
+        // The batch already serves everything it can, so no auto-dispatch run after it.
         if (isBatch) return reply(dispatchBatch(), user);
-        if (isUndo) return reply(undo(), user);
-        return reply((this->*(route->second))(in), user);
+        if (isUndo) return reply(undo(), user);   // no auto-dispatch after an undo, on purpose
+        Outcome o = (this->*(route->second))(in);
+        if (o.ok) runAutoDispatch(o);
+        return reply(o, user);
     } catch (const std::exception& ex) {
         // The coordinator throws std::logic_error only if its own invariants
         // break. That is a bug, not a user mistake: report it, keep serving.
@@ -201,6 +222,8 @@ Api::Outcome Api::dispatchNext() {
     return o;
 }
 
+// Several waiting emergencies at once. The engine plans the whole batch with
+// backtracking (BatchPlanner), then commits it; cases it cannot serve stay queued.
 Api::Outcome Api::dispatchBatch() {
     const BatchResult b = coord_.dispatchBatch();
     Outcome o{409, false, "", false, {}};
@@ -371,7 +394,147 @@ Api::Outcome Api::advanceClock(const JsonObject& in) {
     return {200, true, msg, false, {}};
 }
 
-ApiResponse Api::reply(const Outcome& o, const User* user, const std::string& token) const {
+Api::Outcome Api::setAutoDispatch(const JsonObject& in) {
+    bool on = false;
+    if (!in.getBool("enabled", on)) {
+        return {400, false, "enabled must be true or false.", false, {}};
+    }
+    auto_.setEnabled(on);
+    const std::string msg = on
+        ? "Auto-dispatch switched on: waiting emergencies are dispatched automatically, most urgent first."
+        : "Auto-dispatch switched off: use Dispatch next.";
+    record(msg);
+    return {200, true, msg, false, {}};
+}
+
+// Called by the server about once a second. With auto-dispatch on, an ambulance
+// that has reached its hospital hands the patient over by itself, and the freed
+// ambulance immediately takes the next waiting emergency (most urgent first).
+// Nothing happens while auto-dispatch is off: then the dispatcher confirms
+// deliveries, as before.
+void Api::tick() {
+    if (!auto_.enabled()) return;
+    const double t = now();
+    live_.sync(coord_.activeDispatches(), coord_.registry().roads(), t);
+    const std::string who = actor_;
+    actor_ = "auto-dispatch";
+    bool freed = false;
+    for (const LivePosition& p : live_.all(t)) {
+        if (p.phase == 2 && coord_.completeDispatch(p.emergencyId)) {
+            record(ambulanceLabel(p.ambulanceId) + " reached the hospital with #" +
+                   std::to_string(p.emergencyId) + ": patient handed over, ambulance free again.");
+            freed = true;
+        }
+    }
+    if (freed) {
+        Outcome o{200, true, "", false, {}};
+        runAutoDispatch(o);
+    }
+    actor_ = who;
+}
+
+void Api::runAutoDispatch(Outcome& o) {
+    for (const DispatchResult& r : auto_.run()) {
+        const Emergency* e = coord_.findEmergency(r.emergencyId);
+        char minutes[48];
+        std::snprintf(minutes, sizeof minutes, "%.1f min", r.minutesToScene + r.minutesToHospital);
+        const std::string msg = "Auto-dispatch: " + ambulanceLabel(r.ambulanceId) + " sent to #" +
+                                std::to_string(r.emergencyId) + " at " +
+                                (e != nullptr ? nodeName(e->nodeId()) : std::string("?")) + ", then " +
+                                hospitalName(layout_, r.hospitalId) + " (" + minutes + ", target " +
+                                (r.meetsTarget ? "met" : "missed") + ").";
+        record(msg);
+        o.message += " " + msg;
+    }
+}
+
+Api::Outcome Api::trackingReport(const JsonObject& in) {
+    int id = 0, node = 0;
+    if (!in.getInt("emergency", id) || !in.getInt("node", node)) {
+        return {400, false, "emergency and node must be whole numbers.", false, {}};
+    }
+    const double t = now();
+    live_.sync(coord_.activeDispatches(), coord_.registry().roads(), t);
+    std::string error;
+    if (!live_.reportNode(id, node, t, error)) {
+        return {409, false, error, false, {}};
+    }
+    const LivePosition p = live_.position(id, t);
+    const std::string msg = "Live position: #" + std::to_string(id) + " " + ambulanceLabel(p.ambulanceId) +
+                            " reports reaching " + nodeName(node) + ".";
+    record(msg);
+    return {200, true, msg, false, {}};
+}
+
+Api::Outcome Api::trackingGps(const JsonObject& in) {
+    int id = 0;
+    GpsFix fix;
+    if (!in.getInt("emergency", id)) return {400, false, "emergency must be a whole number.", false, {}};
+    if (!in.getDouble("lat", fix.lat) || !in.getDouble("lon", fix.lon)) {
+        return {400, false, "lat and lon must be numbers (degrees).", false, {}};
+    }
+    if (in.has("accuracy") && !in.getDouble("accuracy", fix.accuracyMetres)) {
+        return {400, false, "accuracy must be a number of metres.", false, {}};
+    }
+    double speed = -1.0;
+    if (in.has("speed") && in.getDouble("speed", speed) && speed >= 0.0) fix.speedMps = speed;
+
+    const double t = now();
+    live_.sync(coord_.activeDispatches(), coord_.registry().roads(), t);
+    const LivePosition before = live_.position(id, t);
+    std::string error;
+    if (!live_.reportGps(id, fix, t, error)) {
+        return {409, false, error, false, {}};
+    }
+    const LivePosition p = live_.position(id, t);
+    char text[160];
+    if (p.offRoute) {
+        std::snprintf(text, sizeof text, "GPS fix received, but it is %.0f m from the planned route of #%d.",
+                      p.offRouteMetres, id);
+    } else {
+        std::snprintf(text, sizeof text, "GPS fix placed on the route of #%d: %.1f of %.1f road min covered.",
+                      id, p.progress, p.totalMinutes);
+    }
+    // The activity log keeps 100 lines: log only the first fix and changes of on/off route,
+    // not one line every few seconds.
+    if (!before.hasGps) {
+        record("Live GPS tracking started for #" + std::to_string(id) + " (" + ambulanceLabel(p.ambulanceId) + ").");
+    } else if (before.offRoute != p.offRoute) {
+        record(p.offRoute ? std::string(text)
+                          : "#" + std::to_string(id) + " is back on its planned route.");
+    }
+    return {200, true, text, false, {}};
+}
+
+Api::Outcome Api::trackingMode(const JsonObject& in) {
+    std::string text;
+    TrackingMode mode = TrackingMode::Gps;
+    if (!in.getString("mode", text) || !parseTrackingMode(text, mode)) {
+        return {400, false, "mode must be \"realtime\", \"gps\" or \"simulated\".", false, {}};
+    }
+    live_.sync(coord_.activeDispatches(), coord_.registry().roads(), now());
+    live_.setMode(mode, now());
+    const std::string msg = mode == TrackingMode::RealTime
+        ? "Real-time tracking: ambulances move at real road speed from dispatch; crew GPS corrects the position."
+        : mode == TrackingMode::Gps
+        ? "Tracking uses real positions only (GPS / crew reports)."
+        : "Tracking switched to SIMULATION: ambulances move by themselves along the route (demo only).";
+    record(msg);
+    return {200, true, msg, false, {}};
+}
+
+Api::Outcome Api::trackingSpeed(const JsonObject& in) {
+    int ms = 0;
+    if (!in.getInt("msPerMinute", ms) || !live_.setSecondsPerRoadMinute(ms / 1000.0, now())) {
+        return {400, false, "msPerMinute must be a whole number from 50 to 600000.", false, {}};
+    }
+    char text[96];
+    std::snprintf(text, sizeof text, "Live tracking speed: 1 road minute = %.2f s.", ms / 1000.0);
+    record(text);
+    return {200, true, text, false, {}};
+}
+
+ApiResponse Api::reply(const Outcome& o, const User* user, const std::string& token) {
     JsonWriter w;
     w.beginObject().key("ok").value(o.ok).key("message").value(o.message).key("result");
     if (o.hasBatch) {
@@ -383,6 +546,50 @@ ApiResponse Api::reply(const Outcome& o, const User* user, const std::string& to
     }
     if (!token.empty()) {
         w.key("token").value(token);
+    }
+    w.key("autoDispatch").value(auto_.enabled());
+    w.key("tracking");
+    if (user != nullptr) {
+        const double t = now();
+        live_.sync(coord_.activeDispatches(), coord_.registry().roads(), t);
+        w.beginObject()
+            .key("mode").value(toString(live_.mode()))
+            .key("geo").value(live_.hasGeo())
+            .key("secondsPerMinute").value(live_.mode() == TrackingMode::RealTime
+                                               ? LiveTracker::kRealSecondsPerRoadMinute
+                                               : live_.secondsPerRoadMinute())
+            .key("trips").beginArray();
+        for (const LivePosition& p : live_.all(t)) {
+            w.beginObject()
+                .key("emergency").value(p.emergencyId)
+                .key("ambulance").value(p.ambulanceId)
+                .key("progress").value(p.progress)
+                .key("toScene").value(p.toSceneMinutes)
+                .key("total").value(p.totalMinutes)
+                .key("phase").value(p.phase)
+                .key("source").value(sourceLabel(p))
+                .key("reports").value(p.reports)
+                .key("secondsSinceFix").value(p.secondsSinceFix)
+                .key("gpsFixes").value(p.gpsFixes)
+                .key("gps");
+            if (p.hasGps) {
+                w.beginObject()
+                    .key("lat").value(p.lat)
+                    .key("lon").value(p.lon)
+                    .key("accuracy").value(p.accuracyMetres)
+                    .key("speed");
+                if (p.speedMps >= 0.0) w.value(p.speedMps); else w.null();
+                w.key("offRoute").value(p.offRoute)
+                    .key("offRouteMetres").value(p.offRouteMetres)
+                    .endObject();
+            } else {
+                w.null();
+            }
+            w.endObject();
+        }
+        w.endArray().endObject();
+    } else {
+        w.null();
     }
     w.key("user");
     if (user != nullptr) {

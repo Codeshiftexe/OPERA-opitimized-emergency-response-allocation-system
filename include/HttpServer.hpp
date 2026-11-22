@@ -43,15 +43,22 @@ class HttpServer {
 public:
     using Handler = std::function<HttpResponse(const HttpRequest&)>;
 
-    HttpServer(unsigned short port, std::string webRoot, Handler apiHandler);
+    // listenOnNetwork false: 127.0.0.1 only (this computer). true: every
+    // network interface, so a crew phone on the same Wi-Fi can connect.
+    HttpServer(unsigned short port, std::string webRoot, Handler apiHandler,
+               bool listenOnNetwork = false);
     ~HttpServer();
 
     HttpServer(const HttpServer&) = delete;
     HttpServer& operator=(const HttpServer&) = delete;
 
-    // Binds to 127.0.0.1 only (this machine), then serves forever.
+    // Binds (127.0.0.1, or all interfaces if listenOnNetwork), then serves forever.
     // Throws std::runtime_error if the port cannot be opened.
     void run();
+
+    // Called about once a second while the server runs, also when no browser
+    // sends anything (auto-dispatch hands over arrivals and dispatches the next case).
+    void setTick(std::function<void()> tick) { tick_ = std::move(tick); }
 
 private:
     HttpResponse serveStatic(const HttpRequest& req) const;
@@ -59,6 +66,8 @@ private:
     unsigned short port_;
     std::string webRoot_;
     Handler api_;
+    bool listenOnNetwork_;
+    std::function<void()> tick_;
 };
 
 }  // namespace opera

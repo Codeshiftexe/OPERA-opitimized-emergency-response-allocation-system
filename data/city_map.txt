@@ -10,7 +10,22 @@
 #
 # EDGE <node id> <node id> <minutes>
 #     a two-way road; minutes is the travel time and must be 0 or more
+#
+# Real-world coordinates (needed for live GPS tracking, see LIVE_TRACKING.md):
+# GEOREF <lat> <lon> <metres per map unit>
+#     at most once. Places EVERY node from its x, y: (x=0, y=0) is at lat/lon,
+#     x grows to the east, y to the south.
+# GEO <node id> <lat> <lon>
+#     exact coordinates of one junction; overrides GEOREF for that node.
+#     The crew page (crew.html > "Set up junction coordinates") prints these
+#     lines for you while you stand at each junction.
 # ==========================================================================
+
+# PLACEHOLDER geo-reference: an approximate fit that puts "Clock Tower" near
+# Dehradun's Ghanta Ghar at 20 m per map unit. The other junctions are NOT at
+# the real places of the same name. Before a real test, stand at each junction
+# you will drive through and add a GEO line for it (crew.html helps).
+GEOREF 30.3335 77.9966 20
 
 # ---- Nodes (junctions / landmarks) ----
 NODE 0   70  70 Gandhi Chowk

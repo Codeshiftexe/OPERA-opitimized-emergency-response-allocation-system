@@ -1,7 +1,12 @@
 // OPERA server: loads the city, owns the one DispatchCoordinator, and serves
 // both the web interface and the JSON API on http://localhost:<port>.
 //
-//   opera_server [--port 8080] [--data <dir>] [--web <dir>]
+//   opera_server [--port 8080] [--data <dir>] [--web <dir>] [--host 127.0.0.1|0.0.0.0]
+//
+// --host  127.0.0.1 (default): only this computer can connect.
+//         0.0.0.0: phones on the same network can open crew.html for live GPS
+//         tracking. Plain HTTP: see LIVE_TRACKING.md for why phones need HTTPS
+//         (a tunnel) or a browser flag before they share GPS.
 //
 // --data  folder with city_map.txt, hospitals.txt, ambulances.txt, passwords.txt
 // --web   folder with opera.html, opera.css, opera.js
@@ -33,6 +38,7 @@ struct Options {
     int port = 8080;
     std::string dataDir = OPERA_DEFAULT_DATA_DIR;
     std::string webDir = OPERA_DEFAULT_WEB_DIR;
+    bool network = false;   // --host 0.0.0.0
 };
 
 bool parseArgs(int argc, char** argv, Options& opt) {
@@ -53,6 +59,15 @@ bool parseArgs(int argc, char** argv, Options& opt) {
             opt.dataDir = value;
         } else if (arg == "--web") {
             opt.webDir = value;
+        } else if (arg == "--host") {
+            if (value == "0.0.0.0") {
+                opt.network = true;
+            } else if (value == "127.0.0.1" || value == "localhost") {
+                opt.network = false;
+            } else {
+                std::cerr << "--host must be 127.0.0.1 or 0.0.0.0\n";
+                return false;
+            }
         } else {
             std::cerr << "Unknown option " << arg << '\n';
             return false;
@@ -66,7 +81,7 @@ bool parseArgs(int argc, char** argv, Options& opt) {
 int main(int argc, char** argv) {
     Options opt;
     if (!parseArgs(argc, argv, opt)) {
-        std::cerr << "Usage: opera_server [--port 8080] [--data <dir>] [--web <dir>]\n";
+        std::cerr << "Usage: opera_server [--port 8080] [--data <dir>] [--web <dir>] [--host 127.0.0.1|0.0.0.0]\n";
         return 2;
     }
 
@@ -105,12 +120,20 @@ int main(int argc, char** argv) {
         [&api](const opera::HttpRequest& req) {
             const opera::ApiResponse r = api.handle(req.method, req.path, req.body, req.authorization);
             return opera::HttpResponse{r.status, "application/json; charset=utf-8", r.body};
-        });
+        },
+        opt.network);
+    server.setTick([&api] { api.tick(); });   // auto-dispatch keeps working with nobody clicking
 
     std::cout << "Serving the web interface from " << opt.webDir << '\n'
               << "OPERA is running: open http://localhost:" << opt.port
               << "  (Ctrl+C to stop)\n"
-              << "A page opened with VS Code Live Server also works while this runs." << std::endl;
+              << "A page opened with VS Code Live Server also works while this runs.\n"
+              << "Ambulance crew (live GPS): open /crew.html on the crew's phone; see LIVE_TRACKING.md."
+              << std::endl;
+    if (opt.network) {
+        std::cout << "Listening on the whole network (--host 0.0.0.0): anyone on it can reach the "
+                     "sign-in page. Use strong passwords." << std::endl;
+    }
     try {
         server.run();
     } catch (const std::exception& e) {

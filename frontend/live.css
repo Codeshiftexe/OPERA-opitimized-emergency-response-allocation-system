@@ -1,0 +1,19 @@
+/* OPERA - "LIVE" badge for real-time tracking (live.js) */
+#op .live-chip { display: inline-flex; align-items: center; gap: 7px; background: #0C2226; color: #E8F5EE; font-weight: 500; letter-spacing: .02em; }
+#op .live-chip[hidden] { display: none; }
+#op .live-dot { width: 8px; height: 8px; border-radius: 50%; background: #2EE59D; box-shadow: 0 0 0 0 rgba(46, 229, 157, .7); animation: livePulse 1.6s infinite; }
+@keyframes livePulse { 0% { box-shadow: 0 0 0 0 rgba(46, 229, 157, .7); } 70% { box-shadow: 0 0 0 8px rgba(46, 229, 157, 0); } 100% { box-shadow: 0 0 0 0 rgba(46, 229, 157, 0); } }
+/* waiting for the first fix, stale fix / off route, simulation */
+#op .live-chip.wait .live-dot { background: #F2C14E; animation: none; }
+#op .live-chip.stale { background: #6B3A00; color: #FFE7C2; }
+#op .live-chip.stale .live-dot { background: #FF9F1C; animation: none; }
+#op .live-chip.sim { background: #5B2A86; color: #F1E6FF; }
+#op .live-chip.sim .live-dot { background: #C9A7F5; animation: none; }
+#op .ph .live-chip { margin-left: auto; }
+#op .live-mode { width: auto; flex: 0 0 auto; height: 30px; border-radius: 6px; border: 1px solid #9DAEB1; background: #fff; font: inherit; font-size: 12px; padding: 0 6px; }
+#op .live-mode[hidden] { display: none; }
+#op label[hidden] { display: none; }
+
+/* real-time mode: moving at real road speed, corrected by crew GPS */
+#op .live-chip.rt { background: #0B3D2E; color: #E8F5EE; }
+#op .live-chip.rt .live-dot { background: #2EE59D; }

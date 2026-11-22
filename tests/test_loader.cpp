@@ -159,6 +159,37 @@ void testAmbulanceErrors() {
     CHECK(contains(bad("AMBULANCE 1 | 0\nAMBULANCE 1 | 1\n"), "a.txt:2:"));
 }
 
+void testGeoCoordinates() {
+    MapLayout layout;
+    // GEOREF places every node from x, y; GEO overrides one node exactly
+    graphFrom(std::string(kMap) + "GEOREF 30.0 78.0 10\nGEO 2 30.5 78.5\n", layout);
+    CHECK_EQ(layout.nodeGeo.size(), std::size_t(3));
+    CHECK(layout.nodeGeo[0].known);
+    // node 0 at x=10, y=20 with 10 m per unit: 100 m east, 200 m south of the reference
+    CHECK_NEAR(layout.nodeGeo[0].lat, 30.0 - 200.0 / 111194.93, 1e-6);
+    CHECK(layout.nodeGeo[0].lon > 78.0);
+    CHECK_NEAR(layout.nodeGeo[2].lat, 30.5, 1e-12);
+    CHECK_NEAR(layout.nodeGeo[2].lon, 78.5, 1e-12);
+
+    MapLayout plain;   // no geo lines: no coordinates, still loads
+    graphFrom(kMap, plain);
+    CHECK_EQ(plain.nodeGeo.size(), std::size_t(3));
+    CHECK(!plain.nodeGeo[1].known);
+
+    MapLayout onlyGeo;  // GEO without GEOREF: only that node
+    graphFrom(std::string(kMap) + "GEO 1 30.1 78.1\n", onlyGeo);
+    CHECK(onlyGeo.nodeGeo[1].known);
+    CHECK(!onlyGeo.nodeGeo[0].known);
+
+    MapLayout bad;
+    CHECK(contains(errorOf([&] { graphFrom(std::string(kMap) + "GEO 9 30 78\n", bad); }), "not defined"));
+    CHECK(contains(errorOf([&] { graphFrom(std::string(kMap) + "GEO 1 95 78\n", bad); }), "latitude"));
+    CHECK(contains(errorOf([&] { graphFrom(std::string(kMap) + "GEO 1 30\n", bad); }), "GEO needs"));
+    CHECK(contains(errorOf([&] { graphFrom(std::string(kMap) + "GEOREF 30 78 0\n", bad); }), "more than 0"));
+    CHECK(contains(errorOf([&] { graphFrom(std::string(kMap) + "GEOREF 30 78 5\nGEOREF 30 78 5\n", bad); }),
+                   "only once"));
+}
+
 void testMissingFile() {
     const std::string e = errorOf([] { loadCity("no/such/map.txt", "h", "a"); });
     CHECK(contains(e, "cannot open"));
@@ -175,6 +206,8 @@ void testShippedData() {
         CHECK_EQ(city.registry.hospitals().size(), std::size_t(6));
         CHECK_EQ(city.registry.ambulances().size(), std::size_t(8));
         CHECK_EQ(city.layout.nodePositions.size(), std::size_t(12));
+        CHECK_EQ(city.layout.nodeGeo.size(), std::size_t(12));
+        CHECK(city.layout.nodeGeo[1].known);   // shipped map is geo-referenced (GEOREF)
     } catch (const LoadError& e) {
         error = e.what();
     }
@@ -190,6 +223,7 @@ int main() {
     testHospitalErrors();
     testAmbulances();
     testAmbulanceErrors();
+    testGeoCoordinates();
     testMissingFile();
     testShippedData();
     return report("test_loader");
