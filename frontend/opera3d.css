@@ -1,0 +1,139 @@
+/* ==========================================================================
+   OPERA - styles for the 3D map (city3d*.js, map3d.js, track3d.js)
+   Colours and fonts follow opera.css. Labels have a day and a night look:
+   city3d.js puts the class o3d-night on the map when it is dark.
+   ========================================================================== */
+
+/* ---- switching between the 2D SVG map and the 3D map ---- */
+#op .o3d-host { display: none; }
+#op .o3d-mode .o3d-host { display: block; }
+#op .o3d-mode svg#map,
+#op .o3d-mode svg#tmap,
+#op .o3d-mode .o3d-old { display: none; }
+#op .o3d-legend, #op .o3d-only { display: none; }
+#op .o3d-mode .o3d-legend { display: flex; }
+#op .o3d-mode .o3d-only { display: inline-flex; }
+
+/* ---- the 3D canvas ---- */
+#op .o3d-host {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  min-height: 380px;
+  max-height: 74vh;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #0B1530;
+  touch-action: none;
+  box-shadow: inset 0 0 0 1px rgba(16, 42, 46, 0.12);
+}
+#op .o3d-canvas { display: block; width: 100%; height: 100%; }
+#op .o3d-labels { position: absolute; inset: 0; pointer-events: none; z-index: 1; }  /* own stack, under the buttons */
+#op .stage .zoom, #op .o3d-tools { z-index: 3; }
+#op .o3d-tools .b.on, #op .o3d-bar .b.on, #op .mh .b.tw.on, #op .zoom .b.on { background: #E3EEF9; border-color: #0B5CAD; color: #0B5CAD; }
+#op .o3d-host .zoom .b, #op .stage .zoom .b { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18); }
+
+/* plain symbols when the icon font cannot load (see body.noicons in opera.css) */
+body.noicons .ti-box::before { content: "\25A3"; }
+body.noicons .ti-focus-2::before { content: "\25CE"; }
+body.noicons .ti-moon::before { content: "\263E"; }
+body.noicons .ti-sun::before { content: "\2600"; }
+body.noicons .ti-rotate-360::before { content: "\27F3"; }
+
+/* ---- header row on the tracking page ---- */
+#op .o3d-bar { display: flex; align-items: center; gap: 8px; padding: 2px 2px 6px; }
+#op .o3d-bar .o3d-title { font-size: 14px; font-weight: 500; margin-right: auto; }
+#op .o3d-sev { font-weight: 500; }
+
+/* ==========================================================================
+   Labels drawn over the 3D scene
+   ========================================================================== */
+.o3d-lbl {
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 11px;
+  line-height: 1.25;
+  color: #102A2E;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  transition: opacity .3s;
+}
+.o3d-lbl.dim { opacity: 0.4; }
+
+/* junction: id badge + name */
+.o3d-node { display: flex; align-items: center; gap: 5px; font-weight: 500; text-shadow: 0 0 3px #F8FAFA, 0 0 3px #F8FAFA, 0 0 6px #F8FAFA; }
+.o3d-node b {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-weight: 400; font-size: 10px;
+  background: #102A2E; color: #fff;
+  border-radius: 4px; padding: 0 4px; text-shadow: none;
+}
+
+/* road travel time */
+.o3d-w {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 9.5px; color: #3E5257;
+  text-shadow: 0 0 3px #F8FAFA, 0 0 3px #F8FAFA, 0 0 3px #F8FAFA;
+}
+
+/* hospital: name and beds */
+.o3d-hosp {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(16, 42, 46, 0.12);
+  border-radius: 8px;
+  padding: 3px 9px 4px;
+  box-shadow: 0 4px 14px rgba(8, 20, 30, 0.18);
+  display: flex; flex-direction: column; align-items: center;
+  font-weight: 500;
+}
+.o3d-hosp span { font-size: 10px; font-weight: 400; }
+.o3d-hosp .ok { color: #1B7143; }
+.o3d-hosp .full { color: #C62F1A; font-weight: 500; }
+
+/* ambulance tag */
+.o3d-amb {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10px;
+  background: #fff;
+  border: 1px solid rgba(16, 42, 46, 0.15);
+  border-radius: 5px;
+  padding: 1px 6px;
+  box-shadow: 0 2px 8px rgba(8, 20, 30, 0.25);
+}
+
+/* incident (patient) label */
+.o3d-pin {
+  --sev: #E5352B;
+  background: var(--sev);
+  color: #fff;
+  border-radius: 99px;
+  padding: 2px 10px;
+  font-weight: 500;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.6), 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+/* start of the route (tracking page) */
+.o3d-start {
+  font-size: 11px; letter-spacing: 0; text-transform: none;
+  color: #0B5CAD; font-weight: 500;
+  text-shadow: 0 0 3px #F8FAFA, 0 0 3px #F8FAFA;
+}
+
+/* ---- night look ---- */
+.o3d-night .o3d-node { color: #E8EEF8; text-shadow: 0 0 4px #050A18, 0 0 8px #050A18, 0 1px 2px #000; }
+.o3d-night .o3d-node b { background: #E8EEF8; color: #0B1530; }
+.o3d-night .o3d-w { color: #9FB2CC; text-shadow: 0 0 4px #050A18, 0 0 6px #050A18; }
+.o3d-night .o3d-hosp { background: rgba(10, 20, 40, 0.82); border-color: rgba(120, 160, 255, 0.25); color: #F1F5FF; backdrop-filter: blur(4px); }
+.o3d-night .o3d-hosp .ok { color: #5EE6A4; }
+.o3d-night .o3d-hosp .full { color: #FF7A6E; }
+.o3d-night .o3d-amb { background: rgba(10, 20, 40, 0.85); color: #E8EEF8; border-color: rgba(255, 255, 255, 0.15); }
+.o3d-night .o3d-start { color: #7FB8FF; text-shadow: 0 0 6px #050A18; }
+
+/* ---- legend under the 3D map ---- */
+#op .o3d-legend { flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+#op .o3d-legend i { display: inline-block; vertical-align: middle; margin-right: 5px; }
+#op .o3d-legend .sw { width: 14px; height: 9px; border-radius: 3px; }
+#op .o3d-legend .sw.sq { width: 10px; height: 10px; border-radius: 2px; }
+#op .o3d-legend .ln { width: 16px; height: 4px; border-radius: 2px; }
+#op .o3d-legend .hint { flex-basis: 100%; color: #4B5F63; }
+body.noicons .ti-video::before { content: "\25B6"; }

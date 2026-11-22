@@ -1,0 +1,3 @@
+# Installed by "npm install" (see package.json). Do not commit it:
+# every teammate runs "npm install" in this folder once instead.
+node_modules/
