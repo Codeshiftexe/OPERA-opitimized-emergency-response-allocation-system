@@ -29,7 +29,7 @@ FILES
                 and redraws everything from the state the server sends back.
   track.html    live tracking page, opened automatically after a dispatch.
   track.js      moves the ambulance along the route the engine calculated.
-  captcha.txt   captcha codes, one per line (unchanged).
+  captcha.txt   no longer used: the server now makes and checks the captcha (SECURITY.md).
 
 Accounts now live in data/passwords.txt (the server checks them; the
 browser can no longer read that file). City data lives in data/.
