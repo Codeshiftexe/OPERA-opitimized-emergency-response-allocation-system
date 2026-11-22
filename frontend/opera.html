@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>OPERA · Sign in</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 <link rel="stylesheet" href="opera.css">
 </head>
@@ -31,14 +31,23 @@
       <circle cx="150" cy="520" r="9" fill="#C62F1A"/>
       <rect x="319" y="459" width="22" height="22" rx="4" fill="#1B7143"/>
     </svg>
-    <div class="lg-brand"><b>OPERA</b><span>Optimized Emergency Response Allocation</span></div>
-    <p class="lg-line">Every call ranked, every ambulance placed, every route computed by the C++ engine.</p>
+    <div class="lg-siren"><i></i><i></i></div>
+    <div class="lg-brand"><span class="lg-tag">Emergency dispatch system</span><b>OPERA</b><span>Optimized Emergency Response Allocation</span></div>
+    <svg class="lg-ecg" viewBox="0 0 600 80" preserveAspectRatio="none">
+      <path d="M0 44 H150 L162 44 L172 16 L186 72 L198 30 L208 44 H330 L342 44 L352 20 L366 68 L378 34 L388 44 H600"/>
+    </svg>
+    <ul class="lg-facts">
+      <li><i class="f-red"></i>Calls ranked by severity and waiting time</li>
+      <li><i class="f-amber"></i>Nearest free ambulance sent on the fastest route</li>
+      <li><i class="f-green"></i>A free hospital bed reserved before it leaves</li>
+    </ul>
+    <p class="lg-line">In a real emergency in India, call <b>108</b>.</p>
   </section>
   <section class="lg-form">
     <form id="lform" autocomplete="off" novalidate>
       <div>
-        <h1 id="lgT">Sign in</h1>
-        <p class="lg-sub">Use the name and password your administrator gave you.</p>
+        <h1 id="lgT">Dispatcher sign-in</h1>
+        <p class="lg-sub">For authorised dispatch staff. Use the name and password your administrator gave you.</p>
       </div>
       <label>Name<input type="text" id="l_name" autocomplete="username" spellcheck="false"></label>
       <label>Password<input type="password" id="l_pass" autocomplete="current-password"></label>
@@ -50,7 +59,7 @@
         <label>Type the characters shown above<input type="text" id="l_cap" maxlength="10" autocomplete="off" autocapitalize="characters" spellcheck="false"></label>
       </div>
       <div class="lg-err" id="lerr" role="alert"></div>
-      <button type="submit" class="b tl" id="lgo"><i class="ti ti-lock-open" aria-hidden="true"></i>Sign in</button>
+      <button type="submit" class="b tl" id="lgo"><i class="ti ti-lock-open" aria-hidden="true"></i>Sign in to the dispatch desk</button>
       <div class="lg-pw" id="lsrv" role="status"><span class="lg-warn">Looking for the OPERA server…</span></div>
       <details class="lg-help">
         <summary>Make a passwords.txt line</summary>
@@ -82,27 +91,25 @@
   </div>
   <div id="flash" class="flash" role="status" aria-live="polite" hidden></div>
 
-  <!-- dashboard -->
+  <!-- dashboard, minimal: the Dispatch desk banner and live counters on top,
+       then one tab for each part of the desk. A tab plays a short loading
+       animation and opens its page (dashboard.js). The panels themselves live
+       in the hidden store below, so opera.js keeps updating them as before. -->
   <div id="home">
-    <!-- top row: Dispatch desk (left) and the scrolling activity log (top right) -->
-    <div class="toprow">
-      <section class="hero" aria-labelledby="heroTg">
-        <h1 class="hero-h"><button class="hero-tg" id="heroTg" aria-expanded="false" aria-controls="heroMore">Dispatch desk<i class="ti ti-chevron-down hero-ch" aria-hidden="true"></i></button></h1>
+      <section class="hero hero-slim" aria-labelledby="heroTg">
+        <h1 class="hero-h"><button class="hero-tg" id="heroTg" aria-expanded="false" aria-controls="heroMore">Rank every call, send the nearest free ambulance, reserve a bed<i class="ti ti-chevron-down hero-ch" aria-hidden="true"></i></button></h1>
         <div class="hero-txt" id="heroMore" hidden>
           <p>Register emergencies and dispatch them. The C++ engine ranks the queue, picks the nearest available ambulance and the nearest hospital with a free bed.</p>
           <p id="heroRole"></p>
           <p class="hero-now" id="heroNow"></p>
         </div>
       </section>
-      <section class="card logcard" aria-labelledby="logT">
-        <h3 id="logT">Activity log <small>newest first · hover to pause</small></h3>
-        <div class="ticker" id="log" tabindex="0" aria-label="Activity log, scrolling. Hover or focus to pause."></div>
-      </section>
-    </div>
+    <div class="kpis" id="kpis" aria-live="polite"></div>
+    <nav class="tabs" id="tabs" aria-label="Dispatch desk sections"></nav>
 
-    <div class="grid">
-      <div class="col">
-        <div class="card reg xl">
+    <!-- every panel, shown on its tab page -->
+    <div class="fv-store" id="fvStore" hidden>
+        <div class="card reg">
           <div class="rhead"><i class="ti ti-plus" aria-hidden="true"></i><span>Register emergency</span></div>
           <div class="two">
             <label>Type<select id="type"></select></label>
@@ -113,40 +120,39 @@
             <button class="b pr" id="reg"><i class="ti ti-plus" aria-hidden="true" style="font-size:22px"></i>Register</button>
             <button class="b tl" id="disp"><i class="ti ti-ambulance" aria-hidden="true" style="font-size:22px"></i>Dispatch next</button>
           </div>
-          <button class="b" id="dispAll" title="Dispatch the most urgent emergencies together; the engine chooses which ambulance goes where by backtracking"><i class="ti ti-route" aria-hidden="true" style="font-size:20px"></i>Dispatch all waiting (optimal)</button>
+          <button class="b" id="dispAll" title="Dispatch the most urgent waiting emergencies together; the engine chooses which ambulance goes where by backtracking"><i class="ti ti-route" aria-hidden="true" style="font-size:20px"></i>Dispatch all waiting (optimal)</button>
         </div>
-        <div class="card">
-          <h3>Emergency queue <span class="qn" id="qCount"></span> <small>serve order from the engine’s triage heap</small></h3>
-          <input type="search" id="find" placeholder="#4, cardiac, assigned" aria-label="Filter queue">
-          <div id="queue" class="qlist"></div>
-        </div>
-      </div>
-      <div class="col">
-        <!-- small Ambulances / Hospitals buttons; their numbers replace the old top-bar stats -->
-        <div class="mini2">
-          <button class="b big amb mini" id="bAmb"><span class="ic"><i class="ti ti-ambulance" aria-hidden="true"></i></span><span class="tx"><b>Ambulances</b><span id="bAmbS"></span></span><i class="ti ti-chevron-right ch" aria-hidden="true"></i></button>
-          <button class="b big hos mini" id="bHos"><span class="ic"><i class="ti ti-building-hospital" aria-hidden="true"></i></span><span class="tx"><b>Hospitals</b><span id="bHosS"></span></span><i class="ti ti-chevron-right ch" aria-hidden="true"></i></button>
-        </div>
-        <div class="card" style="border:2px solid var(--rt)">
+        <div class="card resp-card">
           <h3 id="rh">Response</h3>
           <div class="facts" id="facts"></div>
           <div class="path mono" id="path"></div>
           <div class="tb" id="respAct"></div>
         </div>
-        <div class="card">
+        <div class="card q-card">
+          <h3>Emergency queue <span class="qn" id="qCount"></span> <small>serve order from the engine’s triage heap</small></h3>
+          <input type="search" id="find" placeholder="#4, cardiac, assigned" aria-label="Filter queue">
+          <div id="queue" class="qlist"></div>
+        </div>
+        <div class="card act-card">
           <h3>Active dispatches <span class="qn qb" id="activeN">0</span> <small>ambulances on a call</small></h3>
           <div id="active" class="alist"></div>
         </div>
-        <div class="card">
+        <div class="card beds-card">
           <h3>Hospital beds <small>free of total, from the engine</small></h3>
           <div id="beds" class="blist"></div>
         </div>
-        <!-- See map: bottom right, with a live preview -->
+        <section class="card logcard" aria-labelledby="logT">
+        <h3 id="logT">Activity log <small>newest first · hover to pause</small></h3>
+        <div class="ticker" id="log" tabindex="0" aria-label="Activity log, scrolling. Hover or focus to pause."></div>
+        </section>
         <button class="mapbtn mapbr mapprev" id="seeMap" aria-label="See map">
           <span class="mrow"><span class="mi"><i class="ti ti-map-2" aria-hidden="true"></i></span><span class="mt"><b>See map</b><span id="mapSub"></span></span><i class="ti ti-chevron-right ch" aria-hidden="true"></i></span>
           <svg id="miniMap" viewBox="0 0 640 380" aria-hidden="true"></svg>
         </button>
-      </div>
+        <div class="mini2">
+          <button class="b big amb mini" id="bAmb"><span class="ic"><i class="ti ti-ambulance" aria-hidden="true"></i></span><span class="tx"><b>Ambulances</b><span id="bAmbS"></span></span><i class="ti ti-chevron-right ch" aria-hidden="true"></i></button>
+          <button class="b big hos mini" id="bHos"><span class="ic"><i class="ti ti-building-hospital" aria-hidden="true"></i></span><span class="tx"><b>Hospitals</b><span id="bHosS"></span></span><i class="ti ti-chevron-right ch" aria-hidden="true"></i></button>
+        </div>
     </div>
   </div>
 
@@ -187,5 +193,22 @@
 </div>
 
 <script src="opera.js"></script>
+<!-- 3D map (Three.js). Added with the 3D files: opera3d.css, city3d.js, map3d.js.
+     Three.js is loaded from node_modules (run "npm install" in frontend/ once). -->
+<link rel="stylesheet" href="opera3d.css">
+<script type="importmap">
+{ "imports": { "three": "./node_modules/three/build/three.module.js",
+               "three/addons/": "./node_modules/three/examples/jsm/" } }
+</script>
+<script type="module" src="map3d.js"></script>
+<!-- Auto-dispatch switch (engine side: include/AutoDispatcher.hpp). -->
+<link rel="stylesheet" href="autodispatch.css">
+<script src="autodispatch.js"></script>
+<!-- Real-time tracking: live positions from the server (engine side: include/LiveTracker.hpp). -->
+<link rel="stylesheet" href="live.css">
+<script src="live.js"></script>
+<!-- Dashboard theme and live counters (layout and colours only; the engine decides everything). -->
+<link rel="stylesheet" href="dashboard.css">
+<script src="dashboard.js"></script>
 </body>
 </html>
