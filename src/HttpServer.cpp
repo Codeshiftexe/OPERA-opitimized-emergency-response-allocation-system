@@ -1,5 +1,7 @@
 #include "HttpServer.hpp"
 
+#include <chrono>
+
 #include <cctype>
 #include <cstdlib>
 #include <fstream>
@@ -218,8 +220,10 @@ bool isLocalOrigin(const std::string& origin) {
     return false;
 }
 
-HttpServer::HttpServer(unsigned short port, std::string webRoot, Handler apiHandler)
-    : port_(port), webRoot_(std::move(webRoot)), api_(std::move(apiHandler)) {
+HttpServer::HttpServer(unsigned short port, std::string webRoot, Handler apiHandler,
+                       bool listenOnNetwork)
+    : port_(port), webRoot_(std::move(webRoot)), api_(std::move(apiHandler)),
+      listenOnNetwork_(listenOnNetwork) {
 #ifdef _WIN32
     WSADATA wsa;
     if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
@@ -273,7 +277,8 @@ void HttpServer::run() {
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port_);
-    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);  // this computer only, not the network
+    // default: this computer only. --host 0.0.0.0: the local network too (crew phones).
+    addr.sin_addr.s_addr = htonl(listenOnNetwork_ ? INADDR_ANY : INADDR_LOOPBACK);
     if (bind(listener, reinterpret_cast<sockaddr*>(&addr), sizeof addr) != 0 ||
         listen(listener, 16) != 0) {
         closeSocket(listener);
@@ -281,7 +286,26 @@ void HttpServer::run() {
                                  " is already in use (another OPERA running?) or not allowed");
     }
 
+    auto lastTick = std::chrono::steady_clock::now();
     while (true) {
+        // Wait at most one second for a browser, so the tick runs even when nobody connects.
+        if (tick_ && std::chrono::steady_clock::now() - lastTick >= std::chrono::seconds(1)) {
+            lastTick = std::chrono::steady_clock::now();
+            try { tick_(); } catch (const std::exception& e) { std::cerr << "tick: " << e.what() << std::endl; }
+        }
+        fd_set ready;
+        FD_ZERO(&ready);
+        FD_SET(listener, &ready);
+        timeval wait{};
+        wait.tv_sec = 1;
+#ifdef _WIN32
+        const int n = select(0, &ready, nullptr, nullptr, &wait);   // Winsock ignores the first argument
+#else
+        const int n = select(static_cast<int>(listener) + 1, &ready, nullptr, nullptr, &wait);
+#endif
+        if (n <= 0) {
+            continue;   // no browser waiting: back to the tick
+        }
         const SocketHandle client = accept(listener, nullptr, nullptr);
         if (client == kInvalidSocket) {
             continue;
