@@ -6,9 +6,16 @@
 //
 //   city_map.txt     NODE <id> <x> <y> <name...>
 //                    EDGE <node id> <node id> <minutes>
+//                    GEOREF <lat> <lon> <metres per map unit>     (optional, at most once)
+//                    GEO <node id> <lat> <lon>                    (optional, per node)
 //       Node ids must be 0, 1, 2, ... in the order they appear, so the id in
 //       the file is exactly the id the Graph hands out. Every EDGE is a
 //       two-way road. x and y are map coordinates for the web interface only.
+//       GEOREF / GEO give the junctions real-world coordinates, which real GPS
+//       tracking needs (see LiveTracker.hpp). GEO is exact for one junction;
+//       GEOREF places every other junction from its x, y: (x=0, y=0) is at
+//       lat/lon, x grows to the east and y to the south, in the given metres
+//       per map unit. A node with neither has no coordinates.
 //
 //   hospitals.txt    HOSPITAL <id> | <node id> | <name> | <total beds> [| <beds free>]
 //       beds free defaults to total beds.
@@ -28,6 +35,7 @@
 
 #include "Registry.hpp"
 #include "Graph.hpp"
+#include "Geo.hpp"
 
 namespace opera {
 
@@ -42,6 +50,8 @@ struct Point {
 // the domain classes stay unaware of how they are drawn.
 struct MapLayout {
     std::vector<Point> nodePositions;                    // index = graph node id
+    std::vector<GeoPoint> nodeGeo;                       // index = graph node id; empty or
+                                                         // !known: no real coordinates
     std::unordered_map<int, std::string> hospitalNames;  // hospital id -> name
 };
 

@@ -129,9 +129,21 @@ Graph loadGraph(std::istream& in, const std::string& source, MapLayout& layout) 
         double minutes;
     };
 
+    struct PendingGeo {
+        int line;
+        int node;
+        double lat;
+        double lon;
+    };
+
     Graph graph;
     std::vector<PendingEdge> edges;
+    std::vector<PendingGeo> geos;
+    bool hasGeoRef = false;
+    GeoPoint geoRef;
+    double metresPerUnit = 0.0;
     layout.nodePositions.clear();
+    layout.nodeGeo.clear();
 
     for (const Record& r : readRecords(in)) {
         const std::vector<std::string> f = splitWhitespace(r.rest);
@@ -185,8 +197,35 @@ Graph loadGraph(std::istream& in, const std::string& source, MapLayout& layout) 
                 fail(source, r.line, "a road must join two different nodes");
             }
             edges.push_back(e);
+        } else if (r.keyword == "GEOREF") {
+            if (hasGeoRef) {
+                fail(source, r.line, "GEOREF may appear only once");
+            }
+            if (f.size() != 3 || !parseDouble(f[0], geoRef.lat) || !parseDouble(f[1], geoRef.lon) ||
+                !parseDouble(f[2], metresPerUnit)) {
+                fail(source, r.line, "GEOREF needs exactly: latitude longitude metresPerMapUnit");
+            }
+            if (!validLatLon(geoRef.lat, geoRef.lon)) {
+                fail(source, r.line, "GEOREF latitude must be -90..90 and longitude -180..180");
+            }
+            if (metresPerUnit <= 0.0) {
+                fail(source, r.line, "GEOREF metres per map unit must be more than 0");
+            }
+            geoRef.known = true;
+            hasGeoRef = true;
+        } else if (r.keyword == "GEO") {
+            PendingGeo g{r.line, 0, 0.0, 0.0};
+            if (f.size() != 3 || !parseInt(f[0], g.node) || !parseDouble(f[1], g.lat) ||
+                !parseDouble(f[2], g.lon)) {
+                fail(source, r.line, "GEO needs exactly: nodeId latitude longitude");
+            }
+            if (!validLatLon(g.lat, g.lon)) {
+                fail(source, r.line, "GEO latitude must be -90..90 and longitude -180..180");
+            }
+            geos.push_back(g);
         } else {
-            fail(source, r.line, "unknown record '" + r.keyword + "' (expected NODE or EDGE)");
+            fail(source, r.line,
+                 "unknown record '" + r.keyword + "' (expected NODE, EDGE, GEOREF or GEO)");
         }
     }
 
@@ -199,6 +238,22 @@ Graph loadGraph(std::istream& in, const std::string& source, MapLayout& layout) 
             fail(source, e.line, "EDGE refers to a node that is not defined");
         }
         graph.addEdge(e.a, e.b, e.minutes, true);
+    }
+
+    // Real-world coordinates: GEOREF for every node, then exact GEO lines on top.
+    layout.nodeGeo.assign(static_cast<std::size_t>(graph.size()), GeoPoint{});
+    if (hasGeoRef) {
+        for (int id = 0; id < graph.size(); ++id) {
+            const Point& p = layout.nodePositions[static_cast<std::size_t>(id)];
+            layout.nodeGeo[static_cast<std::size_t>(id)] =
+                fromLocal(geoRef, p.x * metresPerUnit, -p.y * metresPerUnit);
+        }
+    }
+    for (const PendingGeo& g : geos) {
+        if (!graph.hasNode(g.node)) {
+            fail(source, g.line, "GEO refers to a node that is not defined");
+        }
+        layout.nodeGeo[static_cast<std::size_t>(g.node)] = GeoPoint{g.lat, g.lon, true};
     }
     return graph;
 }
